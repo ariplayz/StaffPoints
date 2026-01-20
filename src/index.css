@@ -69,4 +69,5 @@ p {
   font-size: 1rem;
   color: inherit;
   opacity: 0.9;
+  align-self: center;
 }

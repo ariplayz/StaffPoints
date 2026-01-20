@@ -12,12 +12,37 @@ function showEnterPointsScreen(){
     
 }
 
+function EnterPointsScreen(){
+    return(
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start'}}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center'}}>
+                <p>Staff Points</p>
+                <button>View Points</button>
+                <button onClick={showEnterPointsScreen}>Enter Points</button>
+            </div>
+
+            <hr style={{border: '2px solid #2d4c7a', width: '100%'}}/>
+
+            <h1 style={{margin: '0', alignSelf: 'center'}}>Welcome to</h1>
+
+        </div>
+    )
+}
+
 function App() {
     return (
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center'}}>
-            <p>Staff Points</p>
-            <button>View Points</button>
-            <button onClick={showEnterPointsScreen}>Enter Points</button>
+        <div style={{display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start'}}>
+            <div style={{display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center'}}>
+                <p>Staff Points</p>
+                <button>View Points</button>
+                <button onClick={showEnterPointsScreen}>Enter Points</button>
+            </div>
+
+            <hr style={{border: '2px solid #2d4c7a', width: '100%'}}/>
+
+            <h1 style={{margin: '0', alignSelf: 'center'}}>Welcome to the Staff Points console.</h1>
+            <p>Use this console to enter and view staff points.</p>
+
         </div>
     );
 }
