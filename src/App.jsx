@@ -10,11 +10,13 @@ function App() {
 
     useEffect(() => {
         fetchSlips();
+        const interval = setInterval(() => fetchSlips(false), 20000); // Refresh every 20 seconds without showing loading state
+        return () => clearInterval(interval);
     }, []);
 
-    const fetchSlips = async () => {
+    const fetchSlips = async (showLoading = true) => {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             const response = await fetch(API_URL);
             if (!response.ok) throw new Error('Failed to fetch slips');
             const data = await response.json();
@@ -29,7 +31,7 @@ function App() {
             console.error('Error fetching slips:', err);
             setError('Failed to load data from server. Please ensure the backend is running.');
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
