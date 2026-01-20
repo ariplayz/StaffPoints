@@ -48,7 +48,7 @@ function App() {
     }
 
     if (screen === 'enter') {
-        return <EnterPointsScreen setScreen={setScreen} setPointsSlips={setPointsSlips} fetchSlips={fetchSlips} />;
+        return <EnterPointsScreen setScreen={setScreen} fetchSlips={fetchSlips} />;
     }
 
     if (screen === 'view') {
@@ -72,7 +72,7 @@ function App() {
     );
 }
 
-function EnterPointsScreen({ setScreen, setPointsSlips, fetchSlips }) {
+function EnterPointsScreen({ setScreen, fetchSlips }) {
     const [name, setName] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [points, setPoints] = useState('');
