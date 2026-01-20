@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react';
 
-const API_URL = 'http://localhost:3001/api/slips';
+const API_URL = `${window.location.protocol}//${window.location.hostname}:3001/api/slips`;
 
 function App() {
     const [pointsSlips, setPointsSlips] = useState([]);

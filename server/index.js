@@ -10,9 +10,13 @@ const credsPath = path.join(process.cwd(), 'credentials.txt');
 if (fs.existsSync(credsPath)) {
     const creds = fs.readFileSync(credsPath, 'utf8');
     creds.split('\n').forEach(line => {
-        const [key, value] = line.split('=');
-        if (key && value) {
-            process.env[key.trim()] = value.trim();
+        const index = line.indexOf('=');
+        if (index !== -1) {
+            const key = line.substring(0, index).trim();
+            const value = line.substring(index + 1).trim();
+            if (key) {
+                process.env[key] = value;
+            }
         }
     });
 }
