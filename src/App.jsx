@@ -160,15 +160,26 @@ function App() {
 }
 
 function Navigation({ setScreen, screen, theme, currentUser, onLogout }) {
+    const navButtonStyle = (isBtnActive) => ({
+        padding: '8px 16px',
+        backgroundColor: isBtnActive ? theme.primary : 'transparent',
+        color: isBtnActive ? 'white' : theme.text,
+        border: `1px solid ${isBtnActive ? theme.primary : theme.border}`,
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontWeight: isBtnActive ? 'bold' : 'normal',
+        transition: 'all 0.2s'
+    });
+
     return (
         <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
                 <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0, marginRight: '10px' }}>Staff Points</p>
-                <button style={navButtonStyle(screen === 'home', theme)} onClick={() => setScreen('home')}>Home</button>
-                <button style={navButtonStyle(screen === 'view', theme)} onClick={() => setScreen('view')}>View Points</button>
-                <button style={navButtonStyle(screen === 'enter', theme)} onClick={() => setScreen('enter')}>Enter Points</button>
+                <button style={navButtonStyle(screen === 'home')} onClick={() => setScreen('home')}>Home</button>
+                <button style={navButtonStyle(screen === 'view')} onClick={() => setScreen('view')}>View Points</button>
+                <button style={navButtonStyle(screen === 'enter')} onClick={() => setScreen('enter')}>Enter Points</button>
                 {currentUser.role === 'admin' && (
-                    <button style={navButtonStyle(screen === 'admin', theme)} onClick={() => setScreen('admin')}>Admin</button>
+                    <button style={navButtonStyle(screen === 'admin')} onClick={() => setScreen('admin')}>Admin</button>
                 )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -522,8 +533,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
     
     const totalPointsWeek = weeklySlips.reduce((sum, p) => sum + p.points, 0);
     const totalHoursWeek = weeklySlips.reduce((sum, p) => sum + p.hours, 0);
-    const avgPointsWeek = weeklySlips.length > 0 ? (totalPointsWeek / weeklySlips.length).toFixed(2) : 0;
-    const avgHoursWeek = weeklySlips.length > 0 ? (totalHoursWeek / weeklySlips.length).toFixed(2) : 0;
+    const avgPointsWeek = weeklySlips.length > 0 ? Number((totalPointsWeek / weeklySlips.length).toFixed(2)) : 0;
+    const avgHoursWeek = weeklySlips.length > 0 ? Number((totalHoursWeek / weeklySlips.length).toFixed(2)) : 0;
 
     const staffNames = [...new Set(pointsSlips.map(p => p.name))].sort();
     
@@ -536,8 +547,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
 
     useEffect(() => {
         if (activeTab === 'table' && tableContainerRef.current) {
-            const todayIndex = 14; 
             const container = tableContainerRef.current;
+            const todayIndex = 14; 
             const scrollAmount = (todayIndex * 160); 
             container.scrollLeft = scrollAmount - (container.clientWidth / 2) + 80;
         }
@@ -733,17 +744,6 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
         </div>
     );
 }
-
-const navButtonStyle = (isActive, theme) => ({
-    padding: '8px 16px',
-    backgroundColor: isActive ? theme.primary : 'transparent',
-    color: isActive ? 'white' : theme.text,
-    border: `1px solid ${isActive ? theme.primary : theme.border}`,
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: isActive ? 'bold' : 'normal',
-    transition: 'all 0.2s'
-});
 
 export default App;
 
