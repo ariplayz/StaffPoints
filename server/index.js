@@ -2,15 +2,22 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = 80; // As per previous request to run on port 80
+
+// Path to data.json - using the one specified in previous issues
+const DATA_FILE = '/var/www/staffpoints/data.json';
+const WEB_ROOT = '/var/www/staffpoints';
+
 app.use(cors());
 app.use(express.json());
 
-// Path to the JSON file in the webroot
-const DATA_FILE = '/var/www/staffpoints/data.json';
-
-// Ensure the directory exists (optional, but good for local dev if path is different)
+// Ensure the directory exists
 const ensureDirectoryExistence = (filePath) => {
     const dirname = path.dirname(filePath);
     if (fs.existsSync(dirname)) {
@@ -18,56 +25,80 @@ const ensureDirectoryExistence = (filePath) => {
     }
     try {
         fs.mkdirSync(dirname, { recursive: true });
-    } catch (err) {
-        console.warn(`Could not create directory ${dirname}:`, err.message);
+    } catch (e) {
+        console.error('Error creating directory:', e);
+        // Fallback to local directory if /var/www/staffpoints is not writable/accessible
+        return false;
     }
 };
 
-// Initialize the data file if it doesn't exist
-const initDataFile = () => {
-    ensureDirectoryExistence(DATA_FILE);
-    if (!fs.existsSync(DATA_FILE)) {
-        fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2));
-        console.log(`Created new data file at ${DATA_FILE}`);
-    }
-};
+let activeDataFile = DATA_FILE;
+if (!ensureDirectoryExistence(DATA_FILE)) {
+    activeDataFile = path.join(__dirname, '..', 'data.json');
+    console.log(`Fallback: Using local data file at ${activeDataFile}`);
+}
 
-initDataFile();
+// Initialize file if it doesn't exist
+if (!fs.existsSync(activeDataFile)) {
+    fs.writeFileSync(activeDataFile, JSON.stringify([], null, 2));
+}
+
+// Serve static files from webroot if it exists
+if (fs.existsSync(WEB_ROOT)) {
+    app.use(express.static(WEB_ROOT));
+}
 
 app.get('/api/slips', (req, res) => {
-    try {
-        const data = fs.readFileSync(DATA_FILE, 'utf8');
-        res.json(JSON.parse(data));
-    } catch (err) {
-        console.error('GET /api/slips error:', err);
-        res.status(500).json({ error: 'Failed to read data' });
-    }
+    fs.readFile(activeDataFile, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to read data' });
+        }
+        try {
+            const slips = JSON.parse(data);
+            res.json(slips);
+        } catch (e) {
+            res.status(500).json({ error: 'Failed to parse data' });
+        }
+    });
 });
 
 app.post('/api/slips', (req, res) => {
-    try {
-        const { name, date, points, hours } = req.body;
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const newSlip = req.body;
+    
+    fs.readFile(activeDataFile, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to read data' });
+        }
         
-        const newSlip = {
-            id: Date.now(),
-            name,
-            date,
-            points,
-            hours
-        };
+        let slips = [];
+        try {
+            slips = JSON.parse(data);
+        } catch (e) {
+            // If parse fails, start with empty array
+        }
         
-        data.push(newSlip);
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        slips.push(newSlip);
         
-        res.status(201).json({ message: 'Slip saved successfully' });
-    } catch (err) {
-        console.error('POST /api/slips error:', err);
-        res.status(500).json({ error: 'Failed to save data' });
+        fs.writeFile(activeDataFile, JSON.stringify(slips, null, 2), (err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Failed to save data' });
+            }
+            res.status(201).json(newSlip);
+        });
+    });
+});
+
+// SPA routing - redirect all other requests to index.html if it exists
+app.get('*', (req, res) => {
+    const indexPath = path.join(WEB_ROOT, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send('Not found');
     }
 });
 
-const PORT = 3001;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Saving data to: ${activeDataFile}`);
 });

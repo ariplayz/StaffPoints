@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "preview": "vite preview"
   },
   "dependencies": {
     "cors": "^2.8.5",

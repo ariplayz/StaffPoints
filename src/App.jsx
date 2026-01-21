@@ -1,6 +1,8 @@
 import { Fragment, useState, useEffect } from 'react';
 
-const API_URL = `${window.location.protocol}//${window.location.hostname}:3001/api/slips`;
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost/api/slips'
+    : '/api/slips';
 
 function App() {
     const [pointsSlips, setPointsSlips] = useState([]);
@@ -8,17 +10,11 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        fetchSlips();
-        const interval = setInterval(() => fetchSlips(false), 20000); // Refresh every 20 seconds without showing loading state
-        return () => clearInterval(interval);
-    }, []);
-
-    const fetchSlips = async (showLoading = true) => {
+    const fetchSlips = async (isSilent = false) => {
+        if (!isSilent) setLoading(true);
         try {
-            if (showLoading) setLoading(true);
             const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('Failed to fetch slips');
+            if (!response.ok) throw new Error('Failed to fetch data');
             const data = await response.json();
             // Convert date strings back to Date objects
             const formattedData = data.map(slip => ({
@@ -28,29 +24,65 @@ function App() {
             setPointsSlips(formattedData);
             setError(null);
         } catch (err) {
-            console.error('Error fetching slips:', err);
-            setError('Failed to load data from server. Please ensure the backend is running.');
+            console.error('Fetch error:', err);
+            if (!isSilent) setError('Could not connect to the server. Please ensure the backend is running.');
         } finally {
-            if (showLoading) setLoading(false);
+            if (!isSilent) setLoading(false);
         }
     };
 
-    if (error) {
+    useEffect(() => {
+        fetchSlips();
+
+        // Refresh every 20 seconds
+        const interval = setInterval(() => {
+            fetchSlips(true);
+        }, 20000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const addSlip = async (newSlip) => {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newSlip),
+            });
+
+            if (!response.ok) throw new Error('Failed to save data');
+            
+            // Refresh the list immediately after adding
+            await fetchSlips(true);
+        } catch (err) {
+            console.error('Add slip error:', err);
+            alert('Error saving points to the server.');
+        }
+    };
+
+    if (loading && pointsSlips.length === 0) {
         return (
-            <div style={{ padding: '20px', color: 'red' }}>
-                <h2>Error</h2>
-                <p>{error}</p>
-                <button onClick={fetchSlips}>Retry</button>
+            <div style={{ padding: '20px', textAlign: 'center' }}>
+                <h1>Loading points slips...</h1>
+                <p>Connecting to the server on port 80...</p>
             </div>
         );
     }
 
-    if (loading) {
-        return <div style={{ padding: '20px' }}>Loading points slips...</div>;
+    if (error && pointsSlips.length === 0) {
+        return (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+                <h1>Error</h1>
+                <p>{error}</p>
+                <button onClick={() => fetchSlips()}>Retry</button>
+            </div>
+        );
     }
 
     if (screen === 'enter') {
-        return <EnterPointsScreen setScreen={setScreen} fetchSlips={fetchSlips} />;
+        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} />;
     }
 
     if (screen === 'view') {
@@ -74,14 +106,13 @@ function App() {
     );
 }
 
-function EnterPointsScreen({ setScreen, fetchSlips }) {
+function EnterPointsScreen({ setScreen, addSlip }) {
     const [name, setName] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [points, setPoints] = useState('');
     const [hours, setHours] = useState('');
-    const [submitting, setSubmitting] = useState(false);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!name || !date || !points || !hours) {
             alert('Please fill in all fields');
@@ -90,37 +121,18 @@ function EnterPointsScreen({ setScreen, fetchSlips }) {
 
         const newSlip = {
             name,
-            date, // Send as string YYYY-MM-DD
+            date, // String YYYY-MM-DD
             points: parseFloat(points),
             hours: parseFloat(hours)
         };
 
-        try {
-            setSubmitting(true);
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(newSlip),
-            });
-
-            if (!response.ok) throw new Error('Failed to save slip');
-
-            // Refresh the slips list from the server
-            await fetchSlips();
-            
-            // Reset form
-            setName('');
-            setPoints('');
-            setHours('');
-            alert('Points entered and saved successfully!');
-        } catch (err) {
-            console.error('Error saving slip:', err);
-            alert('Error saving slip to database. Please check if the server is running.');
-        } finally {
-            setSubmitting(false);
-        }
+        addSlip(newSlip);
+        
+        // Reset form
+        setName('');
+        setPoints('');
+        setHours('');
+        alert('Points entered successfully!');
     };
 
     return (
@@ -195,17 +207,17 @@ function EnterPointsScreen({ setScreen, fetchSlips }) {
                     />
                 </div>
 
-                <button type="submit" disabled={submitting} style={{ 
+                <button type="submit" style={{ 
                     padding: '10px', 
-                    backgroundColor: submitting ? '#ccc' : '#2d4c7a', 
+                    backgroundColor: '#2d4c7a', 
                     color: 'white', 
                     border: 'none', 
                     borderRadius: '4px',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                     fontWeight: 'bold',
                     marginTop: '10px'
                 }}>
-                    {submitting ? 'Saving...' : 'Submit Slip'}
+                    Submit Slip
                 </button>
             </form>
         </div>

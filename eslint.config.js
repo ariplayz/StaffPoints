@@ -26,15 +26,4 @@ export default defineConfig([
       'no-unused-vars': 'off',
     },
   },
-  {
-    files: ['server/**/*.js'],
-    extends: [js.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: {
-        ...globals.node,
-      },
-      sourceType: 'module',
-    },
-  },
 ])
