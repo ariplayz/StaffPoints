@@ -386,7 +386,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
         e.preventDefault();
         const matchedStaff = staffList.find(s => s.name.toLowerCase() === name.toLowerCase());
         if (!matchedStaff) {
-            alert('Please select a valid staff member from the list');
+            alert('Please enter a valid staff member name, or, contact an administrator to add new valid staff to the list.');
             return;
         }
         if (!date || !points || !hours) {
