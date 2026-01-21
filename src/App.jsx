@@ -1,14 +1,16 @@
 import React, { Fragment, useState, useEffect } from 'react';
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost/api/slips'
-    : '/api/slips';
+    ? 'http://localhost/api'
+    : '/api';
 
 function App() {
     const [pointsSlips, setPointsSlips] = useState([]);
     const [screen, setScreen] = useState('home');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [staffList, setStaffList] = useState([]);
 
     const theme = {
         primary: '#016c4a',
@@ -24,12 +26,10 @@ function App() {
     const fetchSlips = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const response = await fetch(API_URL);
+            const response = await fetch(`${API_URL}/slips`);
             if (!response.ok) throw new Error('Failed to fetch data');
             const data = await response.json();
-            // Convert date strings back to Date objects
             const formattedData = data.map(slip => {
-                // Parse date string (YYYY-MM-DD) as local time to avoid timezone shifts
                 const [year, month, day] = slip.date.split('-').map(Number);
                 return {
                     ...slip,
@@ -40,42 +40,54 @@ function App() {
             setError(null);
         } catch (err) {
             console.error('Fetch error:', err);
-            if (!isSilent) setError('Could not connect to the server. Please ensure the backend is running.');
+            if (!isSilent) setError('Could not connect to the server.');
         } finally {
             if (!isSilent) setLoading(false);
         }
     };
 
+    const fetchStaff = async () => {
+        try {
+            const response = await fetch(`${API_URL}/staff`);
+            if (response.ok) {
+                const data = await response.json();
+                setStaffList(data);
+            }
+        } catch (err) {
+            console.error('Fetch staff error:', err);
+        }
+    };
+
     useEffect(() => {
-        // Apply global background color to body
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            setCurrentUser(JSON.parse(savedUser));
+        }
+
         document.body.style.backgroundColor = theme.background;
         document.body.style.color = theme.text;
         document.body.style.margin = '0';
         document.body.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
 
         fetchSlips();
+        fetchStaff();
 
-        // Refresh every 20 seconds
         const interval = setInterval(() => {
             fetchSlips(true);
+            fetchStaff();
         }, 20000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [theme.background, theme.text]);
 
     const addSlip = async (newSlip) => {
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_URL}/slips`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newSlip),
             });
-
             if (!response.ok) throw new Error('Failed to save data');
-            
-            // Refresh the list immediately after adding
             await fetchSlips(true);
         } catch (err) {
             console.error('Add slip error:', err);
@@ -83,76 +95,278 @@ function App() {
         }
     };
 
+    const handleLogin = async (username, password) => {
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+            if (response.ok) {
+                const user = await response.json();
+                setCurrentUser(user);
+                localStorage.setItem('user', JSON.stringify(user));
+                setScreen('home');
+            } else {
+                alert('Invalid credentials');
+            }
+        } catch (err) {
+            alert('Login failed. Server might be down.');
+        }
+    };
+
+    const handleLogout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem('user');
+        setScreen('home');
+    };
+
+    if (!currentUser) {
+        return <LoginScreen onLogin={handleLogin} theme={theme} />;
+    }
+
     if (loading && pointsSlips.length === 0) {
         return (
             <div style={{ padding: '20px', textAlign: 'center', backgroundColor: theme.background, minHeight: '100vh', color: theme.text }}>
-                <h1>Loading points slips...</h1>
-                <p>Connecting to the server on port 80...</p>
-            </div>
-        );
-    }
-
-    if (error && pointsSlips.length === 0) {
-        return (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#ff5252', backgroundColor: theme.background, minHeight: '100vh' }}>
-                <h1>Error</h1>
-                <p>{error}</p>
-                <button 
-                    onClick={() => fetchSlips()}
-                    style={{
-                        padding: '10px 20px',
-                        backgroundColor: theme.primary,
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Retry
-                </button>
+                <h1>Loading...</h1>
             </div>
         );
     }
 
     if (screen === 'enter') {
-        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} theme={theme} />;
+        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} theme={theme} staffList={staffList} onLogout={handleLogout} currentUser={currentUser} />;
     }
 
     if (screen === 'view') {
-        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} theme={theme} />;
+        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} theme={theme} onLogout={handleLogout} currentUser={currentUser} />;
+    }
+
+    if (screen === 'admin' && currentUser.role === 'admin') {
+        return <AdminScreen setScreen={setScreen} theme={theme} API_URL={API_URL} onLogout={handleLogout} currentUser={currentUser} />;
     }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
-                <button style={navButtonStyle(screen === 'home', theme)} onClick={() => setScreen('home')}>Home</button>
-                <button style={navButtonStyle(screen === 'view', theme)} onClick={() => setScreen('view')}>View Points</button>
-                <button style={navButtonStyle(screen === 'enter', theme)} onClick={() => setScreen('enter')}>Enter Points</button>
-            </div>
+            <Navigation setScreen={setScreen} screen={screen} theme={theme} currentUser={currentUser} onLogout={handleLogout} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
             <div style={{ alignSelf: 'center', marginTop: '40px', textAlign: 'center' }}>
-                <h1 style={{ margin: '0 0 10px 0', color: theme.primary }}>Welcome to the Staff Points console.</h1>
+                <h1 style={{ margin: '0 0 10px 0', color: theme.primary }}>Welcome, {currentUser.username}!</h1>
                 <p style={{ color: theme.textDim }}>Use this console to enter and view staff points.</p>
             </div>
         </div>
     );
 }
 
-const navButtonStyle = (isActive, theme) => ({
-    padding: '8px 16px',
-    backgroundColor: isActive ? theme.primary : 'transparent',
-    color: isActive ? 'white' : theme.textDim,
-    border: `1px solid ${isActive ? theme.primary : theme.border}`,
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    transition: 'all 0.2s'
-});
+function Navigation({ setScreen, screen, theme, currentUser, onLogout }) {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
+                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0, marginRight: '10px' }}>Staff Points</p>
+                <button style={navButtonStyle(screen === 'home', theme)} onClick={() => setScreen('home')}>Home</button>
+                <button style={navButtonStyle(screen === 'view', theme)} onClick={() => setScreen('view')}>View Points</button>
+                <button style={navButtonStyle(screen === 'enter', theme)} onClick={() => setScreen('enter')}>Enter Points</button>
+                {currentUser.role === 'admin' && (
+                    <button style={navButtonStyle(screen === 'admin', theme)} onClick={() => setScreen('admin')}>Admin</button>
+                )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <span style={{ color: theme.textDim, fontSize: '0.9em' }}>{currentUser.username} ({currentUser.role})</span>
+                <button 
+                    onClick={onLogout}
+                    style={{ 
+                        padding: '5px 10px', 
+                        backgroundColor: 'transparent', 
+                        color: '#ff5252', 
+                        border: '1px solid #ff5252', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer',
+                        fontSize: '0.8em'
+                    }}
+                >
+                    Logout
+                </button>
+            </div>
+        </div>
+    );
+}
 
-function EnterPointsScreen({ setScreen, addSlip, theme }) {
+function LoginScreen({ onLogin, theme }) {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onLogin(username, password);
+    };
+
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: theme.background }}>
+            <form onSubmit={handleSubmit} style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '15px', 
+                width: '100%', 
+                maxWidth: '350px',
+                padding: '40px',
+                backgroundColor: theme.surface,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+            }}>
+                <h1 style={{ color: theme.primary, textAlign: 'center', margin: '0 0 10px 0' }}>Staff Login</h1>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <label style={{ color: theme.textDim, fontSize: '0.9em' }}>Username:</label>
+                    <input 
+                        type="text" 
+                        value={username} 
+                        onChange={(e) => setUsername(e.target.value)} 
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                    />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <label style={{ color: theme.textDim, fontSize: '0.9em' }}>Password:</label>
+                    <input 
+                        type="password" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                    />
+                </div>
+                <button type="submit" style={{ 
+                    padding: '12px', 
+                    backgroundColor: theme.primary, 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    marginTop: '10px'
+                }}>
+                    Login
+                </button>
+            </form>
+        </div>
+    );
+}
+
+function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
+    const [users, setUsers] = useState([]);
+    const [staff, setStaff] = useState([]);
+    const [newUsername, setNewUsername] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newRole, setNewRole] = useState('user');
+    const [newStaffName, setNewStaffName] = useState('');
+
+    const fetchData = React.useCallback(async () => {
+        try {
+            const uRes = await fetch(`${API_URL}/users`);
+            const sRes = await fetch(`${API_URL}/staff`);
+            if (uRes.ok) setUsers(await uRes.json());
+            if (sRes.ok) setStaff(await sRes.json());
+        } catch (e) { console.error(e); }
+    }, [API_URL]);
+
+    useEffect(() => {
+        let isMounted = true;
+        const load = async () => {
+            if (isMounted) await fetchData();
+        };
+        load();
+        return () => { isMounted = false; };
+    }, [fetchData]);
+
+    const addUser = async (e) => {
+        e.preventDefault();
+        if (!newUsername || !newPassword) return;
+        const res = await fetch(`${API_URL}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: newUsername, password: newPassword, role: newRole })
+        });
+        if (res.ok) {
+            setNewUsername(''); setNewPassword(''); fetchData();
+        } else {
+            alert('Failed to add user');
+        }
+    };
+
+    const deleteUser = async (uname) => {
+        if (uname === 'admin') return;
+        const res = await fetch(`${API_URL}/users/${uname}`, { method: 'DELETE' });
+        if (res.ok) fetchData();
+    };
+
+    const addStaff = async (e) => {
+        e.preventDefault();
+        if (!newStaffName) return;
+        const res = await fetch(`${API_URL}/staff`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newStaffName })
+        });
+        if (res.ok) {
+            setNewStaffName(''); fetchData();
+        } else {
+            alert('Failed to add staff');
+        }
+    };
+
+    const deleteStaff = async (name) => {
+        const res = await fetch(`${API_URL}/staff/${name}`, { method: 'DELETE' });
+        if (res.ok) fetchData();
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text, width: '100%', boxSizing: 'border-box' }}>
+            <Navigation setScreen={setScreen} screen="admin" theme={theme} currentUser={currentUser} onLogout={onLogout} />
+            <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
+            <h1 style={{ color: theme.primary }}>Admin Management</h1>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', width: '100%' }}>
+                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+                    <h2 style={{ color: theme.primary, marginTop: 0 }}>Manage Users</h2>
+                    <form onSubmit={addUser} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                        <input placeholder="Username" value={newUsername} onChange={e => setNewUsername(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
+                        <input placeholder="Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
+                        <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button type="submit" style={{ padding: '10px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add User</button>
+                    </form>
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                        {users.map(u => (
+                            <li key={u.username} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}` }}>
+                                <span>{u.username} ({u.role})</span>
+                                {u.username !== 'admin' && <button onClick={() => deleteUser(u.username)} style={{ color: '#ff5252', background: 'none', border: 'none', cursor: 'pointer' }}>Delete</button>}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+                    <h2 style={{ color: theme.primary, marginTop: 0 }}>Manage Staff</h2>
+                    <form onSubmit={addStaff} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                        <input placeholder="Staff Name" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
+                        <button type="submit" style={{ padding: '10px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add Staff</button>
+                    </form>
+                    <ul style={{ listStyle: 'none', padding: 0 }}>
+                        {staff.map(s => (
+                            <li key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}` }}>
+                                <span>{s.name}</span>
+                                <button onClick={() => deleteStaff(s.name)} style={{ color: '#ff5252', background: 'none', border: 'none', cursor: 'pointer' }}>Delete</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, currentUser }) {
     const getLocalDateString = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -164,24 +378,30 @@ function EnterPointsScreen({ setScreen, addSlip, theme }) {
     const [date, setDate] = useState(getLocalDateString(new Date()));
     const [points, setPoints] = useState('');
     const [hours, setHours] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    const suggestions = name ? staffList.filter(s => s.name.toLowerCase().includes(name.toLowerCase())) : [];
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!name || !date || !points || !hours) {
+        const matchedStaff = staffList.find(s => s.name.toLowerCase() === name.toLowerCase());
+        if (!matchedStaff) {
+            alert('Please select a valid staff member from the list');
+            return;
+        }
+        if (!date || !points || !hours) {
             alert('Please fill in all fields');
             return;
         }
 
         const newSlip = {
-            name,
+            name: matchedStaff.name, // Use the correct casing from the list
             date,
             points: parseFloat(points),
             hours: parseFloat(hours)
         };
 
         addSlip(newSlip);
-        
-        // Reset form
         setName('');
         setPoints('');
         setHours('');
@@ -189,12 +409,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme }) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
-                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('home')}>Home</button>
-                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('view')}>View Points</button>
-                <button style={navButtonStyle(true, theme)} onClick={() => setScreen('enter')}>Enter Points</button>
-            </div>
+            <Navigation setScreen={setScreen} screen="enter" theme={theme} currentUser={currentUser} onLogout={onLogout} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
@@ -213,16 +428,32 @@ function EnterPointsScreen({ setScreen, addSlip, theme }) {
                 borderRadius: '8px',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
             }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', position: 'relative' }}>
                     <label htmlFor="name" style={{ color: theme.textDim, fontSize: '0.9em' }}>Staff Name:</label>
                     <input 
                         id="name"
                         type="text" 
                         value={name} 
-                        onChange={(e) => setName(e.target.value)} 
-                        placeholder="Enter name"
+                        autoComplete="off"
+                        onChange={(e) => { setName(e.target.value); setShowSuggestions(true); }} 
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        placeholder="Type staff name..."
                         style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
                     />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div style={{ 
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, 
+                            backgroundColor: theme.surfaceLight, border: `1px solid ${theme.border}`, 
+                            borderRadius: '4px', maxHeight: '150px', overflowY: 'auto' 
+                        }}>
+                            {suggestions.map(s => (
+                                <div key={s.name} onClick={() => { setName(s.name); setShowSuggestions(false); }} style={{ padding: '10px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}` }}>
+                                    {s.name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -279,12 +510,11 @@ function EnterPointsScreen({ setScreen, addSlip, theme }) {
     )
 }
 
-function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
+function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser }) {
     const [selectedStaff, setSelectedStaff] = useState('');
     const [activeTab, setActiveTab] = useState('table');
     const tableContainerRef = React.useRef(null);
 
-    // Calculate weekly stats (last 7 days)
     const todayLocal = new Date();
     todayLocal.setHours(0, 0, 0, 0);
     const oneWeekAgo = new Date(todayLocal.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -297,7 +527,6 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
 
     const staffNames = [...new Set(pointsSlips.map(p => p.name))].sort();
     
-    // For the table, we need a range of dates. Let's do 30 days around today.
     const dates = [];
     for (let i = -14; i <= 14; i++) {
         const d = new Date(todayLocal);
@@ -307,9 +536,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
 
     useEffect(() => {
         if (activeTab === 'table' && tableContainerRef.current) {
-            const todayIndex = 14; // We started from -14 to 14, so index 14 is today
+            const todayIndex = 14; 
             const container = tableContainerRef.current;
-            const scrollAmount = (todayIndex * 160); // approximate width of columns
+            const scrollAmount = (todayIndex * 160); 
             container.scrollLeft = scrollAmount - (container.clientWidth / 2) + 80;
         }
     }, [activeTab]);
@@ -322,12 +551,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%', padding: '20px', boxSizing: 'border-box', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
-                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('home')}>Home</button>
-                <button style={navButtonStyle(true, theme)} onClick={() => setScreen('view')}>View Points</button>
-                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('enter')}>Enter Points</button>
-            </div>
+            <Navigation setScreen={setScreen} screen="view" theme={theme} currentUser={currentUser} onLogout={onLogout} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
@@ -467,7 +691,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
                                 borderRadius: '4px'
                             }}>
                                 {filteredSlips.map((point, index) => {
-                                    const height = (point.points / maxPoints) * 280; // Max height 280px
+                                    const height = (point.points / maxPoints) * 280; 
                                     return (
                                         <div key={index} style={{
                                             display: 'flex',
@@ -509,6 +733,17 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
         </div>
     );
 }
+
+const navButtonStyle = (isActive, theme) => ({
+    padding: '8px 16px',
+    backgroundColor: isActive ? theme.primary : 'transparent',
+    color: isActive ? 'white' : theme.text,
+    border: `1px solid ${isActive ? theme.primary : theme.border}`,
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: isActive ? 'bold' : 'normal',
+    transition: 'all 0.2s'
+});
 
 export default App;
 

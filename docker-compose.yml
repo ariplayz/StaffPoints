@@ -6,6 +6,7 @@ services:
     volumes:
       - staffpoints_data:/data
     environment:
+      - DATA_DIR=/data
       - DATA_FILE=/data/data.json
     restart: always
 
