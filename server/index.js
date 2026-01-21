@@ -167,7 +167,7 @@ if (fs.existsSync(WEB_ROOT)) {
 }
 
 // SPA routing - redirect all other requests to index.html if it exists
-app.get('*', (req, res) => {
+app.get('/{/*splat}', (req, res) => {
     const indexPath = path.join(WEB_ROOT, 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
