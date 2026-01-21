@@ -35,8 +35,8 @@ The fastest way to get the production environment running:
 
 1. **Clone the repository**:
    ```bash
-   git clone <your-repo-url>
-   cd staffpointsslips
+   git clone https://github.com/ariplayz/StaffPoints.git
+   cd StaffPoints
    ```
 
 2. **Launch with Docker Compose**:
@@ -47,7 +47,7 @@ The fastest way to get the production environment running:
 3. **Access the app**:
    Open [http://localhost](http://localhost) in your browser.
 
-> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Rebuilding the container will update the app code but **will not delete your points slips**.
+> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Rebuilding the container will update the app code but **will not delete your points record.**.
 
 ---
 
@@ -74,11 +74,6 @@ The frontend will run at `http://localhost:5173`.
 npm run server
 ```
 
-### 4. Build for Production
-```bash
-npm run build
-```
-
 ---
 
 ## 📂 Project Structure
@@ -92,4 +87,4 @@ npm run build
 
 ## 🛡️ License
 
-This project is open-source and available under the [MIT License](LICENSE).
+This project is open-source and available under the [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.txt).
