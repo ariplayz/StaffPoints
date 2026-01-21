@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect } from 'react';
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost/api/slips'
@@ -121,7 +121,7 @@ function EnterPointsScreen({ setScreen, addSlip }) {
 
         const newSlip = {
             name,
-            date, // String YYYY-MM-DD
+            date,
             points: parseFloat(points),
             hours: parseFloat(hours)
         };
@@ -132,7 +132,6 @@ function EnterPointsScreen({ setScreen, addSlip }) {
         setName('');
         setPoints('');
         setHours('');
-        alert('Points entered successfully!');
     };
 
     return (
@@ -226,8 +225,39 @@ function EnterPointsScreen({ setScreen, addSlip }) {
 
 function ViewPointsScreen({ setScreen, pointsSlips }) {
     const [selectedStaff, setSelectedStaff] = useState('');
+    const [activeTab, setActiveTab] = useState('table');
+    const tableContainerRef = React.useRef(null);
 
-    const staffNames = [...new Set(pointsSlips.map(p => p.name))];
+    // Calculate weekly stats (last 7 days)
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weeklySlips = pointsSlips.filter(p => p.date >= oneWeekAgo);
+    
+    const totalPointsWeek = weeklySlips.reduce((sum, p) => sum + p.points, 0);
+    const totalHoursWeek = weeklySlips.reduce((sum, p) => sum + p.hours, 0);
+    const avgPointsWeek = weeklySlips.length > 0 ? (totalPointsWeek / weeklySlips.length).toFixed(2) : 0;
+    const avgHoursWeek = weeklySlips.length > 0 ? (totalHoursWeek / weeklySlips.length).toFixed(2) : 0;
+
+    const staffNames = [...new Set(pointsSlips.map(p => p.name))].sort();
+    
+    // For the table, we need a range of dates. Let's do 30 days around today.
+    const dates = [];
+    for (let i = -14; i <= 14; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        dates.push(d);
+    }
+
+    useEffect(() => {
+        if (activeTab === 'table' && tableContainerRef.current) {
+            const todayIndex = 14; // We started from -14 to 14, so index 14 is today
+            const container = tableContainerRef.current;
+            const scrollAmount = (todayIndex * 160); // approximate width of columns
+            container.scrollLeft = scrollAmount - (container.clientWidth / 2) + 80;
+        }
+    }, [activeTab]);
+
     const filteredSlips = pointsSlips
         .filter(p => p.name === selectedStaff)
         .sort((a, b) => a.date - b.date);
@@ -235,7 +265,7 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
     const maxPoints = Math.max(...filteredSlips.map(p => p.points), 0);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
                 <p>Staff Points</p>
                 <button onClick={() => setScreen('home')}>Home</button>
@@ -245,96 +275,164 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
 
             <hr style={{ border: '2px solid #2d4c7a', width: '100%' }} />
 
-            <h1 style={{ margin: '0', alignSelf: 'center' }}>View Points</h1>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <label htmlFor="staff-select">Select Staff Member:</label>
-                <select
-                    id="staff-select"
-                    value={selectedStaff}
-                    onChange={(e) => setSelectedStaff(e.target.value)}
-                    style={{ padding: '5px', borderRadius: '4px' }}
-                >
-                    <option value="">--Select a name--</option>
-                    {staffNames.map(name => (
-                        <option key={name} value={name}>{name}</option>
-                    ))}
-                </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', alignItems: 'start', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'start' }}>
-                    <h2>List of Slips:</h2>
-                    <dl>
-                        {(selectedStaff ? filteredSlips : pointsSlips).map((point, index) => {
-                            const pointsPerHour = (point.points / point.hours).toFixed(2);
-
-                            return (
-                                <Fragment key={`${point.name}-${index}`}>
-                                    <dt style={{ fontWeight: 'bold', backgroundColor: '#2d4c7a', color: 'white', borderRadius: '5px', paddingLeft: '10px' }}>
-                                        {point.name}
-                                    </dt>
-                                    <dd>
-                                        <ol>
-                                            <li>Date: {point.date.toDateString()}</li>
-                                            <li>Points: {point.points}</li>
-                                            <li>Hours: {point.hours}</li>
-                                            <li>Points per Hour: {pointsPerHour}</li>
-                                        </ol>
-                                    </dd>
-                                </Fragment>
-                            );
-                        })}
-                    </dl>
-                </div>
-
-                {selectedStaff && filteredSlips.length > 0 && (
-                    <div style={{ flex: 1, minWidth: '300px' }}>
-                        <h2>Points Graph:</h2>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            gap: '10px',
-                            height: '200px',
-                            borderLeft: '2px solid black',
-                            borderBottom: '2px solid black',
-                            padding: '10px',
-                            position: 'relative'
-                        }}>
-                            {filteredSlips.map((point, index) => {
-                                const height = (point.points / maxPoints) * 150; // Max height 150px
-                                return (
-                                    <div key={index} style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        flex: 1
-                                    }}>
-                                        <div style={{
-                                            width: '100%',
-                                            height: `${height}px`,
-                                            backgroundColor: '#2d4c7a',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'flex-start',
-                                            color: 'white',
-                                            fontSize: '10px'
-                                        }}>
-                                            {point.points}
-                                        </div>
-                                        <span style={{ fontSize: '10px', transform: 'rotate(-45deg)', marginTop: '10px', whiteSpace: 'nowrap' }}>
-                                            {point.date.toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #2d4c7a', width: '100%', maxWidth: '600px' }}>
+                <h3>Weekly Stats (Last 7 Days)</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                    <div>
+                        <strong>Total Points:</strong> {totalPointsWeek.toFixed(1)}<br/>
+                        <strong>Total Hours:</strong> {totalHoursWeek.toFixed(1)}
                     </div>
-                )}
+                    <div>
+                        <strong>Avg Points/Slip:</strong> {avgPointsWeek}<br/>
+                        <strong>Avg Hours/Slip:</strong> {avgHoursWeek}
+                    </div>
+                </div>
             </div>
 
+            <div style={{ display: 'flex', borderBottom: '1px solid #ccc' }}>
+                <button 
+                    onClick={() => setActiveTab('table')}
+                    style={{ 
+                        padding: '10px 20px', 
+                        cursor: 'pointer', 
+                        border: 'none', 
+                        backgroundColor: activeTab === 'table' ? '#2d4c7a' : 'transparent',
+                        color: activeTab === 'table' ? 'white' : 'black',
+                        borderTopLeftRadius: '8px',
+                        borderTopRightRadius: '8px'
+                    }}
+                >
+                    Table View
+                </button>
+                <button 
+                    onClick={() => setActiveTab('graph')}
+                    style={{ 
+                        padding: '10px 20px', 
+                        cursor: 'pointer', 
+                        border: 'none', 
+                        backgroundColor: activeTab === 'graph' ? '#2d4c7a' : 'transparent',
+                        color: activeTab === 'graph' ? 'white' : 'black',
+                        borderTopLeftRadius: '8px',
+                        borderTopRightRadius: '8px'
+                    }}
+                >
+                    Graph View
+                </button>
+            </div>
+
+            {activeTab === 'table' ? (
+                <div ref={tableContainerRef} style={{ overflowX: 'auto', width: '100%', border: '1px solid #ccc' }}>
+                    <table style={{ borderCollapse: 'collapse', width: 'max-content' }}>
+                        <thead>
+                            <tr>
+                                <th style={{ border: '1px solid #ccc', padding: '10px', backgroundColor: '#eee', position: 'sticky', left: 0, zIndex: 1 }}>Staff Member</th>
+                                {dates.map(date => (
+                                    <th key={date.toISOString()} colSpan="2" style={{ 
+                                        border: '1px solid #ccc', 
+                                        padding: '10px', 
+                                        backgroundColor: date.toDateString() === new Date().toDateString() ? '#d1e7ff' : '#eee',
+                                        minWidth: '150px'
+                                    }}>
+                                        {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </th>
+                                ))}
+                            </tr>
+                            <tr>
+                                <th style={{ border: '1px solid #ccc', padding: '5px', backgroundColor: '#eee', position: 'sticky', left: 0, zIndex: 1 }}></th>
+                                {dates.map(date => (
+                                    <Fragment key={date.toISOString()}>
+                                        <th style={{ border: '1px solid #ccc', padding: '5px', fontSize: '12px', backgroundColor: '#f9f9f9' }}>1a (Pts)</th>
+                                        <th style={{ border: '1px solid #ccc', padding: '5px', fontSize: '12px', backgroundColor: '#f9f9f9' }}>1b (Hrs)</th>
+                                    </Fragment>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {staffNames.map(name => (
+                                <tr key={name}>
+                                    <td style={{ border: '1px solid #ccc', padding: '10px', fontWeight: 'bold', backgroundColor: '#fff', position: 'sticky', left: 0, zIndex: 1 }}>{name}</td>
+                                    {dates.map(date => {
+                                        const slip = pointsSlips.find(p => p.name === name && p.date.toDateString() === date.toDateString());
+                                        return (
+                                            <Fragment key={date.toISOString()}>
+                                                <td style={{ border: '1px solid #ccc', padding: '10px', textAlign: 'center' }}>{slip ? slip.points : '-'}</td>
+                                                <td style={{ border: '1px solid #ccc', padding: '10px', textAlign: 'center' }}>{slip ? slip.hours : '-'}</td>
+                                            </Fragment>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <label htmlFor="staff-select">Select Staff Member:</label>
+                        <select
+                            id="staff-select"
+                            value={selectedStaff}
+                            onChange={(e) => setSelectedStaff(e.target.value)}
+                            style={{ padding: '5px', borderRadius: '4px', maxWidth: '300px' }}
+                        >
+                            <option value="">--Select a name--</option>
+                            {staffNames.map(name => (
+                                <option key={name} value={name}>{name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {selectedStaff && filteredSlips.length > 0 ? (
+                        <div style={{ flex: 1, minWidth: '300px' }}>
+                            <h2>Points Graph for {selectedStaff}:</h2>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                gap: '10px',
+                                height: '300px',
+                                borderLeft: '2px solid black',
+                                borderBottom: '2px solid black',
+                                padding: '10px',
+                                position: 'relative',
+                                overflowX: 'auto'
+                            }}>
+                                {filteredSlips.map((point, index) => {
+                                    const height = (point.points / maxPoints) * 250; // Max height 250px
+                                    return (
+                                        <div key={index} style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            minWidth: '60px'
+                                        }}>
+                                            <div style={{
+                                                width: '100%',
+                                                height: `${height}px`,
+                                                backgroundColor: '#2d4c7a',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'flex-start',
+                                                color: 'white',
+                                                paddingTop: '5px',
+                                                fontSize: '12px'
+                                            }}>
+                                                {point.points}
+                                            </div>
+                                            <span style={{ fontSize: '10px', transform: 'rotate(-45deg)', marginTop: '20px', whiteSpace: 'nowrap' }}>
+                                                {point.date.toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        <p>{selectedStaff ? 'No data available for this staff member.' : 'Please select a staff member to see their graph.'}</p>
+                    )}
+                </div>
+            )}
         </div>
-    )
+    );
 }
 
 export default App;
