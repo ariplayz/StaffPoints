@@ -28,10 +28,14 @@ function App() {
             if (!response.ok) throw new Error('Failed to fetch data');
             const data = await response.json();
             // Convert date strings back to Date objects
-            const formattedData = data.map(slip => ({
-                ...slip,
-                date: new Date(slip.date)
-            }));
+            const formattedData = data.map(slip => {
+                // Parse date string (YYYY-MM-DD) as local time to avoid timezone shifts
+                const [year, month, day] = slip.date.split('-').map(Number);
+                return {
+                    ...slip,
+                    date: new Date(year, month - 1, day)
+                };
+            });
             setPointsSlips(formattedData);
             setError(null);
         } catch (err) {
@@ -149,8 +153,15 @@ const navButtonStyle = (isActive, theme) => ({
 });
 
 function EnterPointsScreen({ setScreen, addSlip, theme }) {
+    const getLocalDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const [name, setName] = useState('');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(getLocalDateString(new Date()));
     const [points, setPoints] = useState('');
     const [hours, setHours] = useState('');
 
@@ -274,8 +285,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
     const tableContainerRef = React.useRef(null);
 
     // Calculate weekly stats (last 7 days)
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const todayLocal = new Date();
+    todayLocal.setHours(0, 0, 0, 0);
+    const oneWeekAgo = new Date(todayLocal.getTime() - 7 * 24 * 60 * 60 * 1000);
     const weeklySlips = pointsSlips.filter(p => p.date >= oneWeekAgo);
     
     const totalPointsWeek = weeklySlips.reduce((sum, p) => sum + p.points, 0);
@@ -288,9 +300,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
     // For the table, we need a range of dates. Let's do 30 days around today.
     const dates = [];
     for (let i = -14; i <= 14; i++) {
-        const d = new Date();
+        const d = new Date(todayLocal);
         d.setDate(d.getDate() + i);
-        d.setHours(0, 0, 0, 0);
         dates.push(d);
     }
 
@@ -379,8 +390,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
                                     <th key={date.toISOString()} colSpan="2" style={{ 
                                         border: `1px solid ${theme.border}`, 
                                         padding: '12px', 
-                                        backgroundColor: date.toDateString() === new Date().toDateString() ? 'rgba(1, 108, 74, 0.2)' : theme.surfaceLight,
-                                        color: date.toDateString() === new Date().toDateString() ? theme.primary : theme.text,
+                                        backgroundColor: date.toDateString() === todayLocal.toDateString() ? 'rgba(1, 108, 74, 0.2)' : theme.surfaceLight,
+                                        color: date.toDateString() === todayLocal.toDateString() ? theme.primary : theme.text,
                                         minWidth: '150px'
                                     }}>
                                         {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
