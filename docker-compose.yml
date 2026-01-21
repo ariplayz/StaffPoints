@@ -4,7 +4,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - staffpoints_data:/var/www/staffpoints
+      - staffpoints_data:/data
+    environment:
+      - DATA_FILE=/data/data.json
     restart: always
 
 volumes:

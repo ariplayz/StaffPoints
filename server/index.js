@@ -11,8 +11,8 @@ const app = express();
 const PORT = 80; // As per previous request to run on port 80
 
 // Path to data.json - using the one specified in previous issues
-const DATA_FILE = '/var/www/staffpoints/data.json';
-const WEB_ROOT = '/var/www/staffpoints';
+const DATA_FILE = process.env.DATA_FILE || '/var/www/staffpoints/data.json';
+const WEB_ROOT = process.env.WEB_ROOT || '/var/www/staffpoints';
 
 app.use(cors());
 app.use(express.json());
