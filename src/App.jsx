@@ -78,7 +78,7 @@ function App() {
         }, 20000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [theme.background, theme.text]);
 
     const addSlip = async (newSlip) => {
         try {
@@ -259,16 +259,23 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
     const [newRole, setNewRole] = useState('user');
     const [newStaffName, setNewStaffName] = useState('');
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         try {
             const uRes = await fetch(`${API_URL}/users`);
             const sRes = await fetch(`${API_URL}/staff`);
             if (uRes.ok) setUsers(await uRes.json());
             if (sRes.ok) setStaff(await sRes.json());
         } catch (e) { console.error(e); }
-    };
+    }, [API_URL]);
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        let isMounted = true;
+        const load = async () => {
+            if (isMounted) await fetchData();
+        };
+        load();
+        return () => { isMounted = false; };
+    }, [fetchData]);
 
     const addUser = async (e) => {
         e.preventDefault();
@@ -726,6 +733,17 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
         </div>
     );
 }
+
+const navButtonStyle = (isActive, theme) => ({
+    padding: '8px 16px',
+    backgroundColor: isActive ? theme.primary : 'transparent',
+    color: isActive ? 'white' : theme.text,
+    border: `1px solid ${isActive ? theme.primary : theme.border}`,
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: isActive ? 'bold' : 'normal',
+    transition: 'all 0.2s'
+});
 
 export default App;
 
