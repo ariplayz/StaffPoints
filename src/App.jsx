@@ -10,6 +10,17 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const theme = {
+        primary: '#016c4a',
+        background: '#121212',
+        surface: '#1e1e1e',
+        surfaceLight: '#2a2a2a',
+        text: '#e0e0e0',
+        textDim: '#a0a0a0',
+        border: '#333333',
+        accent: '#028a5e'
+    };
+
     const fetchSlips = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
@@ -32,6 +43,12 @@ function App() {
     };
 
     useEffect(() => {
+        // Apply global background color to body
+        document.body.style.backgroundColor = theme.background;
+        document.body.style.color = theme.text;
+        document.body.style.margin = '0';
+        document.body.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+
         fetchSlips();
 
         // Refresh every 20 seconds
@@ -64,7 +81,7 @@ function App() {
 
     if (loading && pointsSlips.length === 0) {
         return (
-            <div style={{ padding: '20px', textAlign: 'center' }}>
+            <div style={{ padding: '20px', textAlign: 'center', backgroundColor: theme.background, minHeight: '100vh', color: theme.text }}>
                 <h1>Loading points slips...</h1>
                 <p>Connecting to the server on port 80...</p>
             </div>
@@ -73,40 +90,65 @@ function App() {
 
     if (error && pointsSlips.length === 0) {
         return (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#ff5252', backgroundColor: theme.background, minHeight: '100vh' }}>
                 <h1>Error</h1>
                 <p>{error}</p>
-                <button onClick={() => fetchSlips()}>Retry</button>
+                <button 
+                    onClick={() => fetchSlips()}
+                    style={{
+                        padding: '10px 20px',
+                        backgroundColor: theme.primary,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Retry
+                </button>
             </div>
         );
     }
 
     if (screen === 'enter') {
-        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} />;
+        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} theme={theme} />;
     }
 
     if (screen === 'view') {
-        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} />;
+        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} theme={theme} />;
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p>Staff Points</p>
-                <button onClick={() => setScreen('home')}>Home</button>
-                <button onClick={() => setScreen('view')}>View Points</button>
-                <button onClick={() => setScreen('enter')}>Enter Points</button>
+                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
+                <button style={navButtonStyle(screen === 'home', theme)} onClick={() => setScreen('home')}>Home</button>
+                <button style={navButtonStyle(screen === 'view', theme)} onClick={() => setScreen('view')}>View Points</button>
+                <button style={navButtonStyle(screen === 'enter', theme)} onClick={() => setScreen('enter')}>Enter Points</button>
             </div>
 
-            <hr style={{ border: '2px solid #2d4c7a', width: '100%' }} />
+            <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <h1 style={{ margin: '0', alignSelf: 'center' }}>Welcome to the Staff Points console.</h1>
-            <p>Use this console to enter and view staff points.</p>
+            <div style={{ alignSelf: 'center', marginTop: '40px', textAlign: 'center' }}>
+                <h1 style={{ margin: '0 0 10px 0', color: theme.primary }}>Welcome to the Staff Points console.</h1>
+                <p style={{ color: theme.textDim }}>Use this console to enter and view staff points.</p>
+            </div>
         </div>
     );
 }
 
-function EnterPointsScreen({ setScreen, addSlip }) {
+const navButtonStyle = (isActive, theme) => ({
+    padding: '8px 16px',
+    backgroundColor: isActive ? theme.primary : 'transparent',
+    color: isActive ? 'white' : theme.textDim,
+    border: `1px solid ${isActive ? theme.primary : theme.border}`,
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    transition: 'all 0.2s'
+});
+
+function EnterPointsScreen({ setScreen, addSlip, theme }) {
     const [name, setName] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [points, setPoints] = useState('');
@@ -135,17 +177,17 @@ function EnterPointsScreen({ setScreen, addSlip }) {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p>Staff Points</p>
-                <button onClick={() => setScreen('home')}>Home</button>
-                <button onClick={() => setScreen('view')}>View Points</button>
-                <button onClick={() => setScreen('enter')}>Enter Points</button>
+                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
+                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('home')}>Home</button>
+                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('view')}>View Points</button>
+                <button style={navButtonStyle(true, theme)} onClick={() => setScreen('enter')}>Enter Points</button>
             </div>
 
-            <hr style={{ border: '2px solid #2d4c7a', width: '100%' }} />
+            <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <h1 style={{ margin: '0', alignSelf: 'center' }}>Enter Points</h1>
+            <h1 style={{ margin: '0', alignSelf: 'center', color: theme.primary }}>Enter Points</h1>
 
             <form onSubmit={handleSubmit} style={{ 
                 display: 'flex', 
@@ -154,47 +196,49 @@ function EnterPointsScreen({ setScreen, addSlip }) {
                 width: '100%', 
                 maxWidth: '400px',
                 alignSelf: 'center',
-                padding: '20px',
-                border: '1px solid #ccc',
-                borderRadius: '8px'
+                padding: '30px',
+                backgroundColor: theme.surface,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <label htmlFor="name">Staff Name:</label>
+                    <label htmlFor="name" style={{ color: theme.textDim, fontSize: '0.9em' }}>Staff Name:</label>
                     <input 
                         id="name"
                         type="text" 
                         value={name} 
                         onChange={(e) => setName(e.target.value)} 
                         placeholder="Enter name"
-                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
                     />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <label htmlFor="date">Date:</label>
+                    <label htmlFor="date" style={{ color: theme.textDim, fontSize: '0.9em' }}>Date:</label>
                     <input 
                         id="date"
                         type="date" 
                         value={date} 
                         onChange={(e) => setDate(e.target.value)} 
-                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
                     />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <label htmlFor="points">Points:</label>
+                    <label htmlFor="points" style={{ color: theme.textDim, fontSize: '0.9em' }}>Points:</label>
                     <input 
                         id="points"
                         type="number" 
                         value={points} 
                         onChange={(e) => setPoints(e.target.value)} 
                         placeholder="Enter points"
-                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
                     />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <label htmlFor="hours">Hours:</label>
+                    <label htmlFor="hours" style={{ color: theme.textDim, fontSize: '0.9em' }}>Hours:</label>
                     <input 
                         id="hours"
                         type="number" 
@@ -202,19 +246,20 @@ function EnterPointsScreen({ setScreen, addSlip }) {
                         value={hours} 
                         onChange={(e) => setHours(e.target.value)} 
                         placeholder="Enter hours"
-                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
                     />
                 </div>
 
                 <button type="submit" style={{ 
-                    padding: '10px', 
-                    backgroundColor: '#2d4c7a', 
+                    padding: '12px', 
+                    backgroundColor: theme.primary, 
                     color: 'white', 
                     border: 'none', 
                     borderRadius: '4px',
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    marginTop: '10px'
+                    marginTop: '10px',
+                    fontSize: '1em'
                 }}>
                     Submit Slip
                 </button>
@@ -223,7 +268,7 @@ function EnterPointsScreen({ setScreen, addSlip }) {
     )
 }
 
-function ViewPointsScreen({ setScreen, pointsSlips }) {
+function ViewPointsScreen({ setScreen, pointsSlips, theme }) {
     const [selectedStaff, setSelectedStaff] = useState('');
     const [activeTab, setActiveTab] = useState('table');
     const tableContainerRef = React.useRef(null);
@@ -265,41 +310,43 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
     const maxPoints = Math.max(...filteredSlips.map(p => p.points), 0);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%', padding: '20px', boxSizing: 'border-box', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
             <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
-                <p>Staff Points</p>
-                <button onClick={() => setScreen('home')}>Home</button>
-                <button onClick={() => setScreen('view')}>View Points</button>
-                <button onClick={() => setScreen('enter')}>Enter Points</button>
+                <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
+                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('home')}>Home</button>
+                <button style={navButtonStyle(true, theme)} onClick={() => setScreen('view')}>View Points</button>
+                <button style={navButtonStyle(false, theme)} onClick={() => setScreen('enter')}>Enter Points</button>
             </div>
 
-            <hr style={{ border: '2px solid #2d4c7a', width: '100%' }} />
+            <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #2d4c7a', width: '100%', maxWidth: '600px' }}>
-                <h3>Weekly Stats (Last 7 Days)</h3>
+            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.primary}`, width: '100%', maxWidth: '600px', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: theme.primary }}>Weekly Stats (Last 7 Days)</h3>
                 <div style={{ display: 'flex', justifyContent: 'space-around' }}>
                     <div>
-                        <strong>Total Points:</strong> {totalPointsWeek.toFixed(1)}<br/>
-                        <strong>Total Hours:</strong> {totalHoursWeek.toFixed(1)}
+                        <span style={{ color: theme.textDim }}>Total Points:</span> <strong style={{ color: theme.text }}>{totalPointsWeek.toFixed(1)}</strong><br/>
+                        <span style={{ color: theme.textDim }}>Total Hours:</span> <strong style={{ color: theme.text }}>{totalHoursWeek.toFixed(1)}</strong>
                     </div>
                     <div>
-                        <strong>Avg Points/Slip:</strong> {avgPointsWeek}<br/>
-                        <strong>Avg Hours/Slip:</strong> {avgHoursWeek}
+                        <span style={{ color: theme.textDim }}>Avg Points/Slip:</span> <strong style={{ color: theme.text }}>{avgPointsWeek}</strong><br/>
+                        <span style={{ color: theme.textDim }}>Avg Hours/Slip:</span> <strong style={{ color: theme.text }}>{avgHoursWeek}</strong>
                     </div>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', borderBottom: '1px solid #ccc' }}>
+            <div style={{ display: 'flex', borderBottom: `1px solid ${theme.border}` }}>
                 <button 
                     onClick={() => setActiveTab('table')}
                     style={{ 
-                        padding: '10px 20px', 
+                        padding: '12px 24px', 
                         cursor: 'pointer', 
                         border: 'none', 
-                        backgroundColor: activeTab === 'table' ? '#2d4c7a' : 'transparent',
-                        color: activeTab === 'table' ? 'white' : 'black',
+                        backgroundColor: activeTab === 'table' ? theme.primary : 'transparent',
+                        color: activeTab === 'table' ? 'white' : theme.textDim,
                         borderTopLeftRadius: '8px',
-                        borderTopRightRadius: '8px'
+                        borderTopRightRadius: '8px',
+                        fontWeight: 'bold',
+                        transition: 'all 0.2s'
                     }}
                 >
                     Table View
@@ -307,13 +354,15 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
                 <button 
                     onClick={() => setActiveTab('graph')}
                     style={{ 
-                        padding: '10px 20px', 
+                        padding: '12px 24px', 
                         cursor: 'pointer', 
                         border: 'none', 
-                        backgroundColor: activeTab === 'graph' ? '#2d4c7a' : 'transparent',
-                        color: activeTab === 'graph' ? 'white' : 'black',
+                        backgroundColor: activeTab === 'graph' ? theme.primary : 'transparent',
+                        color: activeTab === 'graph' ? 'white' : theme.textDim,
                         borderTopLeftRadius: '8px',
-                        borderTopRightRadius: '8px'
+                        borderTopRightRadius: '8px',
+                        fontWeight: 'bold',
+                        transition: 'all 0.2s'
                     }}
                 >
                     Graph View
@@ -321,16 +370,17 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
             </div>
 
             {activeTab === 'table' ? (
-                <div ref={tableContainerRef} style={{ overflowX: 'auto', width: '100%', border: '1px solid #ccc' }}>
+                <div ref={tableContainerRef} style={{ overflowX: 'auto', width: '100%', border: `1px solid ${theme.border}`, borderRadius: '8px', backgroundColor: theme.surface }}>
                     <table style={{ borderCollapse: 'collapse', width: 'max-content' }}>
                         <thead>
                             <tr>
-                                <th style={{ border: '1px solid #ccc', padding: '10px', backgroundColor: '#eee', position: 'sticky', left: 0, zIndex: 1 }}>Staff Member</th>
+                                <th style={{ border: `1px solid ${theme.border}`, padding: '12px', backgroundColor: theme.surfaceLight, color: theme.primary, position: 'sticky', left: 0, zIndex: 1 }}>Staff Member</th>
                                 {dates.map(date => (
                                     <th key={date.toISOString()} colSpan="2" style={{ 
-                                        border: '1px solid #ccc', 
-                                        padding: '10px', 
-                                        backgroundColor: date.toDateString() === new Date().toDateString() ? '#d1e7ff' : '#eee',
+                                        border: `1px solid ${theme.border}`, 
+                                        padding: '12px', 
+                                        backgroundColor: date.toDateString() === new Date().toDateString() ? 'rgba(1, 108, 74, 0.2)' : theme.surfaceLight,
+                                        color: date.toDateString() === new Date().toDateString() ? theme.primary : theme.text,
                                         minWidth: '150px'
                                     }}>
                                         {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -338,11 +388,11 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
                                 ))}
                             </tr>
                             <tr>
-                                <th style={{ border: '1px solid #ccc', padding: '5px', backgroundColor: '#eee', position: 'sticky', left: 0, zIndex: 1 }}></th>
+                                <th style={{ border: `1px solid ${theme.border}`, padding: '5px', backgroundColor: theme.surfaceLight, position: 'sticky', left: 0, zIndex: 1 }}></th>
                                 {dates.map(date => (
                                     <Fragment key={date.toISOString()}>
-                                        <th style={{ border: '1px solid #ccc', padding: '5px', fontSize: '12px', backgroundColor: '#f9f9f9' }}>1a (Pts)</th>
-                                        <th style={{ border: '1px solid #ccc', padding: '5px', fontSize: '12px', backgroundColor: '#f9f9f9' }}>1b (Hrs)</th>
+                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: '12px', backgroundColor: theme.surface, color: theme.textDim }}>1a (Pts)</th>
+                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: '12px', backgroundColor: theme.surface, color: theme.textDim }}>1b (Hrs)</th>
                                     </Fragment>
                                 ))}
                             </tr>
@@ -350,13 +400,13 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
                         <tbody>
                             {staffNames.map(name => (
                                 <tr key={name}>
-                                    <td style={{ border: '1px solid #ccc', padding: '10px', fontWeight: 'bold', backgroundColor: '#fff', position: 'sticky', left: 0, zIndex: 1 }}>{name}</td>
+                                    <td style={{ border: `1px solid ${theme.border}`, padding: '12px', fontWeight: 'bold', backgroundColor: theme.surfaceLight, color: theme.text, position: 'sticky', left: 0, zIndex: 1 }}>{name}</td>
                                     {dates.map(date => {
                                         const slip = pointsSlips.find(p => p.name === name && p.date.toDateString() === date.toDateString());
                                         return (
                                             <Fragment key={date.toISOString()}>
-                                                <td style={{ border: '1px solid #ccc', padding: '10px', textAlign: 'center' }}>{slip ? slip.points : '-'}</td>
-                                                <td style={{ border: '1px solid #ccc', padding: '10px', textAlign: 'center' }}>{slip ? slip.hours : '-'}</td>
+                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text }}>{slip ? slip.points : '-'}</td>
+                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text }}>{slip ? slip.hours : '-'}</td>
                                             </Fragment>
                                         );
                                     })}
@@ -366,14 +416,21 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
                     </table>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: theme.surface, padding: '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <label htmlFor="staff-select">Select Staff Member:</label>
+                        <label htmlFor="staff-select" style={{ color: theme.textDim }}>Select Staff Member:</label>
                         <select
                             id="staff-select"
                             value={selectedStaff}
                             onChange={(e) => setSelectedStaff(e.target.value)}
-                            style={{ padding: '5px', borderRadius: '4px', maxWidth: '300px' }}
+                            style={{ 
+                                padding: '10px', 
+                                borderRadius: '4px', 
+                                maxWidth: '300px', 
+                                backgroundColor: theme.surfaceLight, 
+                                color: theme.text,
+                                border: `1px solid ${theme.border}`
+                            }}
                         >
                             <option value="">--Select a name--</option>
                             {staffNames.map(name => (
@@ -384,41 +441,46 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
 
                     {selectedStaff && filteredSlips.length > 0 ? (
                         <div style={{ flex: 1, minWidth: '300px' }}>
-                            <h2>Points Graph for {selectedStaff}:</h2>
+                            <h2 style={{ color: theme.primary }}>Points Graph for {selectedStaff}:</h2>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'flex-end',
-                                gap: '10px',
-                                height: '300px',
-                                borderLeft: '2px solid black',
-                                borderBottom: '2px solid black',
-                                padding: '10px',
+                                gap: '15px',
+                                height: '350px',
+                                borderLeft: `2px solid ${theme.border}`,
+                                borderBottom: `2px solid ${theme.border}`,
+                                padding: '20px',
                                 position: 'relative',
-                                overflowX: 'auto'
+                                overflowX: 'auto',
+                                backgroundColor: 'rgba(0,0,0,0.1)',
+                                borderRadius: '4px'
                             }}>
                                 {filteredSlips.map((point, index) => {
-                                    const height = (point.points / maxPoints) * 250; // Max height 250px
+                                    const height = (point.points / maxPoints) * 280; // Max height 280px
                                     return (
                                         <div key={index} style={{
                                             display: 'flex',
                                             flexDirection: 'column',
                                             alignItems: 'center',
-                                            minWidth: '60px'
+                                            minWidth: '70px'
                                         }}>
                                             <div style={{
                                                 width: '100%',
                                                 height: `${height}px`,
-                                                backgroundColor: '#2d4c7a',
+                                                backgroundColor: theme.primary,
                                                 display: 'flex',
                                                 justifyContent: 'center',
                                                 alignItems: 'flex-start',
                                                 color: 'white',
                                                 paddingTop: '5px',
-                                                fontSize: '12px'
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                borderRadius: '4px 4px 0 0',
+                                                boxShadow: '0 -2px 4px rgba(0,0,0,0.2)'
                                             }}>
                                                 {point.points}
                                             </div>
-                                            <span style={{ fontSize: '10px', transform: 'rotate(-45deg)', marginTop: '20px', whiteSpace: 'nowrap' }}>
+                                            <span style={{ fontSize: '11px', transform: 'rotate(-45deg)', marginTop: '25px', whiteSpace: 'nowrap', color: theme.textDim }}>
                                                 {point.date.toLocaleDateString()}
                                             </span>
                                         </div>
@@ -427,7 +489,9 @@ function ViewPointsScreen({ setScreen, pointsSlips }) {
                             </div>
                         </div>
                     ) : (
-                        <p>{selectedStaff ? 'No data available for this staff member.' : 'Please select a staff member to see their graph.'}</p>
+                        <p style={{ color: theme.textDim, textAlign: 'center', padding: '40px' }}>
+                            {selectedStaff ? 'No data available for this staff member.' : 'Please select a staff member to see their performance graph.'}
+                        </p>
                     )}
                 </div>
             )}
