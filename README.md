@@ -1,18 +1,20 @@
 # 📊 Staff Points Slips
 
-A modern, lightweight web application for tracking staff performance through points and hours. Built with **React 19**, **Vite**, and **Express 5**, this tool provides real-time data entry, chronological tracking, and visual performance analytics with a secure user system.
+A modern, mobile-optimized web application for tracking staff performance through points and hours. Built with **React 19**, **Vite**, and **Express 5**, this tool provides real-time data entry, chronological tracking, and visual performance analytics with a secure user system and a professional dark green theme.
 
 ---
 
 ## ✨ Features
 
-- **🔐 Secure Authentication**: Role-based access control with login protection.
+- **🔐 Secure Authentication**: Role-based access control (Admin/User) with persistent sessions.
+- **📱 Mobile Optimized**: Fully responsive design with a dedicated mobile interface and hamburger menu.
+- **🎨 Modern Dark Theme**: Professional dark green aesthetic (`#016c4a`) optimized for low-light environments.
 - **🛠️ Admin Dashboard**: Manage user accounts and the official staff directory.
-- **✍️ Enhanced Data Entry**: Autocomplete suggestions for staff names to ensure data consistency.
+- **✍️ Enhanced Data Entry**: Autocomplete suggestions for staff names and local-timezone safe date picking.
 - **📅 Comprehensive Table View**:
-  - Horizontal scrolling through 30 days of records.
+  - Horizontal scrolling through chronological records.
   - Sticky staff name columns for easy tracking.
-  - Visual distinction for the current day.
+  - Highlighting for the current day.
 - **📈 Dynamic Performance Graphs**:
   - Individual staff member selection.
   - Bar graph visualization of points over time.
@@ -27,7 +29,7 @@ A modern, lightweight web application for tracking staff performance through poi
 The application features two levels of access:
 
 - **👤 User**: Can enter new points slips and view performance data/graphs.
-- **🔑 Admin**: Can access the **Admin Management** page to add/delete users and manage the staff list.
+- **🔑 Admin**: Full access, including the **Admin Management** page to manage users and the staff list.
 
 ### Default Credentials
 - **Username**: `admin`
@@ -39,14 +41,14 @@ The application features two levels of access:
 
 - **Frontend**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/)
 - **Backend**: [Node.js](https://nodejs.org/), [Express 5](https://expressjs.com/)
-- **Styling**: Pure CSS (Flexbox/Grid) with a modern dark green theme.
+- **Styling**: Modern Dark Green Theme using Pure CSS.
 - **Deployment**: [Docker](https://www.docker.com/), [Docker Compose](https://docs.docker.com/compose/)
 
 ---
 
 ## 🚀 Quick Start (Docker)
 
-The fastest way to get the production environment running:
+The recommended way to run the production environment:
 
 1. **Clone the repository**:
    ```bash
@@ -60,9 +62,16 @@ The fastest way to get the production environment running:
    ```
 
 3. **Access the app**:
-   Open [http://localhost](http://localhost) in your browser and log in with the default admin credentials.
+   Open [http://localhost](http://localhost) and log in with the default admin credentials.
 
-> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Rebuilding the container with `--build` will update the app code but **will not delete your records** (points, users, or staff).
+### 🔄 Updating the Application
+When pulling new updates from Git, always include the `--build` flag to ensure the latest code is compiled:
+```bash
+git pull
+docker compose up -d --build
+```
+
+> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Updating the app **will not delete your records** (points, users, or staff).
 
 ---
 
@@ -85,7 +94,7 @@ The frontend will run at `http://localhost:5173`.
 
 ### 3. Start API Server (Backend)
 ```bash
-# May require sudo if port 80 is used
+# May require root/sudo for port 80
 npm run server
 ```
 
@@ -95,8 +104,8 @@ npm run server
 
 - `src/`: React frontend source code.
 - `server/`: Express backend (API and static file serving).
-- `dist/`: Built production files (generated after `npm run build`).
-- **Data Files** (stored in the volume or project root):
+- `dist/`: Built production files.
+- **Data Files** (persisted in `/data` via Docker):
   - `data.json`: Points slips records.
   - `users.json`: User accounts and credentials.
   - `staff.json`: Official list of staff members.
