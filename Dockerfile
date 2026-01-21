@@ -22,11 +22,12 @@ RUN npm run build
 RUN mkdir -p /var/www/staffpoints && \
     cp -r dist/* /var/www/staffpoints/
 
-# We ensure the directory is writable for the data.json file
+# We ensure the directory is writable for the data files
 RUN chmod -R 777 /var/www/staffpoints
 
 # Use environment variables to define paths
 ENV WEB_ROOT=/var/www/staffpoints
+ENV DATA_DIR=/var/www/staffpoints
 ENV DATA_FILE=/var/www/staffpoints/data.json
 EXPOSE 80
 
