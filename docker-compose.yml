@@ -1,0 +1,11 @@
+services:
+  staffpoints:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      - staffpoints_data:/var/www/staffpoints
+    restart: always
+
+volumes:
+  staffpoints_data:
