@@ -12,6 +12,14 @@ function App() {
     const [currentUser, setCurrentUser] = useState(null);
     const [staffList, setStaffList] = useState([]);
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const theme = {
         primary: '#016c4a',
         background: '#121212',
@@ -122,7 +130,7 @@ function App() {
     };
 
     if (!currentUser) {
-        return <LoginScreen onLogin={handleLogin} theme={theme} />;
+        return <LoginScreen onLogin={handleLogin} theme={theme} isMobile={isMobile} />;
     }
 
     if (loading && pointsSlips.length === 0) {
@@ -134,42 +142,87 @@ function App() {
     }
 
     if (screen === 'enter') {
-        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} theme={theme} staffList={staffList} onLogout={handleLogout} currentUser={currentUser} />;
+        return <EnterPointsScreen setScreen={setScreen} addSlip={addSlip} theme={theme} staffList={staffList} onLogout={handleLogout} currentUser={currentUser} isMobile={isMobile} />;
     }
 
     if (screen === 'view') {
-        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} theme={theme} onLogout={handleLogout} currentUser={currentUser} />;
+        return <ViewPointsScreen setScreen={setScreen} pointsSlips={pointsSlips} theme={theme} onLogout={handleLogout} currentUser={currentUser} isMobile={isMobile} />;
     }
 
     if (screen === 'admin' && currentUser.role === 'admin') {
-        return <AdminScreen setScreen={setScreen} theme={theme} API_URL={API_URL} onLogout={handleLogout} currentUser={currentUser} />;
+        return <AdminScreen setScreen={setScreen} theme={theme} API_URL={API_URL} onLogout={handleLogout} currentUser={currentUser} isMobile={isMobile} />;
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <Navigation setScreen={setScreen} screen={screen} theme={theme} currentUser={currentUser} onLogout={handleLogout} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: isMobile ? '10px' : '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
+            <Navigation setScreen={setScreen} screen={screen} theme={theme} currentUser={currentUser} onLogout={handleLogout} isMobile={isMobile} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <div style={{ alignSelf: 'center', marginTop: '40px', textAlign: 'center' }}>
-                <h1 style={{ margin: '0 0 10px 0', color: theme.primary }}>Welcome, {currentUser.username}!</h1>
-                <p style={{ color: theme.textDim }}>Use this console to enter and view staff points.</p>
+            <div style={{ alignSelf: 'center', marginTop: isMobile ? '20px' : '40px', textAlign: 'center', padding: isMobile ? '0 10px' : '0' }}>
+                <h1 style={{ margin: '0 0 10px 0', color: theme.primary, fontSize: isMobile ? '1.5em' : '2em' }}>Welcome, {currentUser.username}!</h1>
+                <p style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Use this console to enter and view staff points.</p>
             </div>
         </div>
     );
 }
 
-function Navigation({ setScreen, screen, theme, currentUser, onLogout }) {
+function Navigation({ setScreen, screen, theme, currentUser, onLogout, isMobile }) {
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
+
     const navButtonStyle = (isBtnActive) => ({
-        padding: '8px 16px',
+        padding: isMobile ? '10px 16px' : '8px 16px',
         backgroundColor: isBtnActive ? theme.primary : 'transparent',
         color: isBtnActive ? 'white' : theme.text,
         border: `1px solid ${isBtnActive ? theme.primary : theme.border}`,
         borderRadius: '4px',
         cursor: 'pointer',
         fontWeight: isBtnActive ? 'bold' : 'normal',
-        transition: 'all 0.2s'
+        transition: 'all 0.2s',
+        width: isMobile ? '100%' : 'auto',
+        textAlign: isMobile ? 'left' : 'center'
     });
+
+    if (isMobile) {
+        return (
+            <div style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <p style={{ fontWeight: 'bold', color: theme.primary, fontSize: '1.2em', margin: 0 }}>Staff Points</p>
+                    <button 
+                        onClick={() => setShowMobileMenu(!showMobileMenu)}
+                        style={{ background: 'none', border: `1px solid ${theme.border}`, color: theme.text, padding: '5px 10px', borderRadius: '4px' }}
+                    >
+                        {showMobileMenu ? '✕' : '☰'}
+                    </button>
+                </div>
+                {showMobileMenu && (
+                    <div style={{ 
+                        marginTop: '10px', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '10px', 
+                        backgroundColor: theme.surface, 
+                        padding: '15px', 
+                        borderRadius: '8px', 
+                        border: `1px solid ${theme.border}`,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                    }}>
+                        <button style={navButtonStyle(screen === 'home')} onClick={() => { setScreen('home'); setShowMobileMenu(false); }}>Home</button>
+                        <button style={navButtonStyle(screen === 'view')} onClick={() => { setScreen('view'); setShowMobileMenu(false); }}>View Points</button>
+                        <button style={navButtonStyle(screen === 'enter')} onClick={() => { setScreen('enter'); setShowMobileMenu(false); }}>Enter Points</button>
+                        {currentUser.role === 'admin' && (
+                            <button style={navButtonStyle(screen === 'admin')} onClick={() => { setScreen('admin'); setShowMobileMenu(false); }}>Admin</button>
+                        )}
+                        <hr style={{ border: `0.5px solid ${theme.border}`, width: '100%' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: theme.textDim, fontSize: '0.85em' }}>{currentUser.username} ({currentUser.role})</span>
+                            <button onClick={onLogout} style={{ color: '#ff5252', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85em' }}>Logout</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
@@ -203,7 +256,7 @@ function Navigation({ setScreen, screen, theme, currentUser, onLogout }) {
     );
 }
 
-function LoginScreen({ onLogin, theme }) {
+function LoginScreen({ onLogin, theme, isMobile }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
@@ -213,27 +266,28 @@ function LoginScreen({ onLogin, theme }) {
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: theme.background }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: isMobile ? 'flex-start' : 'center', minHeight: '100vh', backgroundColor: theme.background, padding: isMobile ? '20px' : '0' }}>
             <form onSubmit={handleSubmit} style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
                 gap: '15px', 
                 width: '100%', 
                 maxWidth: '350px',
-                padding: '40px',
+                padding: isMobile ? '25px' : '40px',
                 backgroundColor: theme.surface,
                 border: `1px solid ${theme.border}`,
                 borderRadius: '12px',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                marginTop: isMobile ? '40px' : '0'
             }}>
-                <h1 style={{ color: theme.primary, textAlign: 'center', margin: '0 0 10px 0' }}>Staff Login</h1>
+                <h1 style={{ color: theme.primary, textAlign: 'center', margin: '0 0 10px 0', fontSize: isMobile ? '1.5em' : '2em' }}>Staff Login</h1>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <label style={{ color: theme.textDim, fontSize: '0.9em' }}>Username:</label>
                     <input 
                         type="text" 
                         value={username} 
                         onChange={(e) => setUsername(e.target.value)} 
-                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -242,7 +296,7 @@ function LoginScreen({ onLogin, theme }) {
                         type="password" 
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 
-                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                 </div>
                 <button type="submit" style={{ 
@@ -262,7 +316,7 @@ function LoginScreen({ onLogin, theme }) {
     );
 }
 
-function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
+function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser, isMobile }) {
     const [users, setUsers] = useState([]);
     const [staff, setStaff] = useState([]);
     const [newUsername, setNewUsername] = useState('');
@@ -330,18 +384,18 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text, width: '100%', boxSizing: 'border-box' }}>
-            <Navigation setScreen={setScreen} screen="admin" theme={theme} currentUser={currentUser} onLogout={onLogout} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: isMobile ? '10px' : '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text, width: '100%', boxSizing: 'border-box' }}>
+            <Navigation setScreen={setScreen} screen="admin" theme={theme} currentUser={currentUser} onLogout={onLogout} isMobile={isMobile} />
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
-            <h1 style={{ color: theme.primary }}>Admin Management</h1>
+            <h1 style={{ color: theme.primary, fontSize: isMobile ? '1.5em' : '2em' }}>Admin Management</h1>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', width: '100%' }}>
-                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
-                    <h2 style={{ color: theme.primary, marginTop: 0 }}>Manage Users</h2>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '30px', width: '100%' }}>
+                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}`, flex: 1 }}>
+                    <h2 style={{ color: theme.primary, marginTop: 0, fontSize: isMobile ? '1.2em' : '1.5em' }}>Manage Users</h2>
                     <form onSubmit={addUser} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                        <input placeholder="Username" value={newUsername} onChange={e => setNewUsername(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
-                        <input placeholder="Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
-                        <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}>
+                        <input placeholder="Username" value={newUsername} onChange={e => setNewUsername(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }} />
+                        <input placeholder="Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }} />
+                        <select value={newRole} onChange={e => setNewRole(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}>
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
@@ -350,23 +404,23 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
                     <ul style={{ listStyle: 'none', padding: 0 }}>
                         {users.map(u => (
                             <li key={u.username} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}` }}>
-                                <span>{u.username} ({u.role})</span>
+                                <span style={{ fontSize: isMobile ? '0.9em' : '1em' }}>{u.username} ({u.role})</span>
                                 {u.username !== 'admin' && <button onClick={() => deleteUser(u.username)} style={{ color: '#ff5252', background: 'none', border: 'none', cursor: 'pointer' }}>Delete</button>}
                             </li>
                         ))}
                     </ul>
                 </div>
 
-                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
-                    <h2 style={{ color: theme.primary, marginTop: 0 }}>Manage Staff</h2>
-                    <form onSubmit={addStaff} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                        <input placeholder="Staff Name" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }} />
+                <div style={{ backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.border}`, flex: 1 }}>
+                    <h2 style={{ color: theme.primary, marginTop: 0, fontSize: isMobile ? '1.2em' : '1.5em' }}>Manage Staff</h2>
+                    <form onSubmit={addStaff} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', marginBottom: '20px' }}>
+                        <input placeholder="Staff Name" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} style={{ flex: 1, padding: '8px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }} />
                         <button type="submit" style={{ padding: '10px', backgroundColor: theme.primary, color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add Staff</button>
                     </form>
                     <ul style={{ listStyle: 'none', padding: 0 }}>
                         {staff.map(s => (
                             <li key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}` }}>
-                                <span>{s.name}</span>
+                                <span style={{ fontSize: isMobile ? '0.9em' : '1em' }}>{s.name}</span>
                                 <button onClick={() => deleteStaff(s.name)} style={{ color: '#ff5252', background: 'none', border: 'none', cursor: 'pointer' }}>Delete</button>
                             </li>
                         ))}
@@ -377,7 +431,7 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser }) {
     );
 }
 
-function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, currentUser }) {
+function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, currentUser, isMobile }) {
     const getLocalDateString = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -419,12 +473,12 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <Navigation setScreen={setScreen} screen="enter" theme={theme} currentUser={currentUser} onLogout={onLogout} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'start', padding: isMobile ? '10px' : '20px', minHeight: '100vh', backgroundColor: theme.background, color: theme.text, boxSizing: 'border-box', width: '100%' }}>
+            <Navigation setScreen={setScreen} screen="enter" theme={theme} currentUser={currentUser} onLogout={onLogout} isMobile={isMobile} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <h1 style={{ margin: '0', alignSelf: 'center', color: theme.primary }}>Enter Points</h1>
+            <h1 style={{ margin: '0', alignSelf: 'center', color: theme.primary, fontSize: isMobile ? '1.5em' : '2em' }}>Enter Points</h1>
 
             <form onSubmit={handleSubmit} style={{ 
                 display: 'flex', 
@@ -433,11 +487,12 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                 width: '100%', 
                 maxWidth: '400px',
                 alignSelf: 'center',
-                padding: '30px',
+                padding: isMobile ? '20px' : '30px',
                 backgroundColor: theme.surface,
                 border: `1px solid ${theme.border}`,
                 borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                boxSizing: 'border-box'
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', position: 'relative' }}>
                     <label htmlFor="name" style={{ color: theme.textDim, fontSize: '0.9em' }}>Staff Name:</label>
@@ -450,7 +505,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                         onFocus={() => setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         placeholder="Type staff name..."
-                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                     {showSuggestions && suggestions.length > 0 && (
                         <div style={{ 
@@ -459,7 +514,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                             borderRadius: '4px', maxHeight: '150px', overflowY: 'auto' 
                         }}>
                             {suggestions.map(s => (
-                                <div key={s.name} onClick={() => { setName(s.name); setShowSuggestions(false); }} style={{ padding: '10px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}` }}>
+                                <div key={s.name} onClick={() => { setName(s.name); setShowSuggestions(false); }} style={{ padding: '12px', cursor: 'pointer', borderBottom: `1px solid ${theme.border}` }}>
                                     {s.name}
                                 </div>
                             ))}
@@ -474,7 +529,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                         type="date" 
                         value={date} 
                         onChange={(e) => setDate(e.target.value)} 
-                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                 </div>
 
@@ -486,7 +541,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                         value={points} 
                         onChange={(e) => setPoints(e.target.value)} 
                         placeholder="Enter points"
-                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                 </div>
 
@@ -499,7 +554,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
                         value={hours} 
                         onChange={(e) => setHours(e.target.value)} 
                         placeholder="Enter hours"
-                        style={{ padding: '10px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text }}
+                        style={{ padding: '12px', borderRadius: '4px', border: `1px solid ${theme.border}`, backgroundColor: theme.surfaceLight, color: theme.text, fontSize: '16px' }}
                     />
                 </div>
 
@@ -521,7 +576,7 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
     )
 }
 
-function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser }) {
+function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser, isMobile }) {
     const [selectedStaff, setSelectedStaff] = useState('');
     const [activeTab, setActiveTab] = useState('table');
     const tableContainerRef = React.useRef(null);
@@ -539,7 +594,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
     const staffNames = [...new Set(pointsSlips.map(p => p.name))].sort();
     
     const dates = [];
-    for (let i = -14; i <= 14; i++) {
+    const dateRange = isMobile ? 7 : 14;
+    for (let i = -dateRange; i <= dateRange; i++) {
         const d = new Date(todayLocal);
         d.setDate(d.getDate() + i);
         dates.push(d);
@@ -548,11 +604,11 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
     useEffect(() => {
         if (activeTab === 'table' && tableContainerRef.current) {
             const container = tableContainerRef.current;
-            const todayIndex = 14; 
+            const todayIndex = dateRange; 
             const scrollAmount = (todayIndex * 160); 
             container.scrollLeft = scrollAmount - (container.clientWidth / 2) + 80;
         }
-    }, [activeTab]);
+    }, [activeTab, dateRange]);
 
     const filteredSlips = pointsSlips
         .filter(p => p.name === selectedStaff)
@@ -561,21 +617,22 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
     const maxPoints = Math.max(...filteredSlips.map(p => p.points), 0);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%', padding: '20px', boxSizing: 'border-box', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
-            <Navigation setScreen={setScreen} screen="view" theme={theme} currentUser={currentUser} onLogout={onLogout} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%', padding: isMobile ? '10px' : '20px', boxSizing: 'border-box', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
+            <Navigation setScreen={setScreen} screen="view" theme={theme} currentUser={currentUser} onLogout={onLogout} isMobile={isMobile} />
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: theme.surface, padding: '20px', borderRadius: '8px', border: `1px solid ${theme.primary}`, width: '100%', maxWidth: '600px', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
-                <h3 style={{ margin: '0 0 15px 0', color: theme.primary }}>Weekly Stats (Last 7 Days)</h3>
-                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: theme.surface, padding: isMobile ? '15px' : '20px', borderRadius: '8px', border: `1px solid ${theme.primary}`, width: '100%', maxWidth: '600px', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+                <h3 style={{ margin: '0 0 15px 0', color: theme.primary, fontSize: isMobile ? '1.1em' : '1.3em' }}>Weekly Stats (Last 7 Days)</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-around', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '0' }}>
                     <div>
-                        <span style={{ color: theme.textDim }}>Total Points:</span> <strong style={{ color: theme.text }}>{totalPointsWeek.toFixed(1)}</strong><br/>
-                        <span style={{ color: theme.textDim }}>Total Hours:</span> <strong style={{ color: theme.text }}>{totalHoursWeek.toFixed(1)}</strong>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Points:</span> <strong style={{ color: theme.text }}>{totalPointsWeek.toFixed(1)}</strong><br/>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Hours:</span> <strong style={{ color: theme.text }}>{totalHoursWeek.toFixed(1)}</strong>
                     </div>
+                    {isMobile && <hr style={{ border: `0.5px solid ${theme.border}`, width: '80%' }} />}
                     <div>
-                        <span style={{ color: theme.textDim }}>Avg Points/Slip:</span> <strong style={{ color: theme.text }}>{avgPointsWeek}</strong><br/>
-                        <span style={{ color: theme.textDim }}>Avg Hours/Slip:</span> <strong style={{ color: theme.text }}>{avgHoursWeek}</strong>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Avg Pts/Slip:</span> <strong style={{ color: theme.text }}>{avgPointsWeek}</strong><br/>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Avg Hrs/Slip:</span> <strong style={{ color: theme.text }}>{avgHoursWeek}</strong>
                     </div>
                 </div>
             </div>
@@ -584,7 +641,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                 <button 
                     onClick={() => setActiveTab('table')}
                     style={{ 
-                        padding: '12px 24px', 
+                        padding: isMobile ? '12px 16px' : '12px 24px', 
                         cursor: 'pointer', 
                         border: 'none', 
                         backgroundColor: activeTab === 'table' ? theme.primary : 'transparent',
@@ -592,7 +649,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                         borderTopLeftRadius: '8px',
                         borderTopRightRadius: '8px',
                         fontWeight: 'bold',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        fontSize: isMobile ? '0.9em' : '1em',
+                        flex: isMobile ? 1 : 'none'
                     }}
                 >
                     Table View
@@ -600,7 +659,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                 <button 
                     onClick={() => setActiveTab('graph')}
                     style={{ 
-                        padding: '12px 24px', 
+                        padding: isMobile ? '12px 16px' : '12px 24px', 
                         cursor: 'pointer', 
                         border: 'none', 
                         backgroundColor: activeTab === 'graph' ? theme.primary : 'transparent',
@@ -608,7 +667,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                         borderTopLeftRadius: '8px',
                         borderTopRightRadius: '8px',
                         fontWeight: 'bold',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        fontSize: isMobile ? '0.9em' : '1em',
+                        flex: isMobile ? 1 : 'none'
                     }}
                 >
                     Graph View
@@ -620,14 +681,15 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                     <table style={{ borderCollapse: 'collapse', width: 'max-content' }}>
                         <thead>
                             <tr>
-                                <th style={{ border: `1px solid ${theme.border}`, padding: '12px', backgroundColor: theme.surfaceLight, color: theme.primary, position: 'sticky', left: 0, zIndex: 1 }}>Staff Member</th>
+                                <th style={{ border: `1px solid ${theme.border}`, padding: '12px', backgroundColor: theme.surfaceLight, color: theme.primary, position: 'sticky', left: 0, zIndex: 1, fontSize: isMobile ? '0.9em' : '1em' }}>Staff Member</th>
                                 {dates.map(date => (
                                     <th key={date.toISOString()} colSpan="2" style={{ 
                                         border: `1px solid ${theme.border}`, 
                                         padding: '12px', 
                                         backgroundColor: date.toDateString() === todayLocal.toDateString() ? 'rgba(1, 108, 74, 0.2)' : theme.surfaceLight,
                                         color: date.toDateString() === todayLocal.toDateString() ? theme.primary : theme.text,
-                                        minWidth: '150px'
+                                        minWidth: isMobile ? '120px' : '150px',
+                                        fontSize: isMobile ? '0.8em' : '0.9em'
                                     }}>
                                         {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                     </th>
@@ -637,8 +699,8 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                                 <th style={{ border: `1px solid ${theme.border}`, padding: '5px', backgroundColor: theme.surfaceLight, position: 'sticky', left: 0, zIndex: 1 }}></th>
                                 {dates.map(date => (
                                     <Fragment key={date.toISOString()}>
-                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: '12px', backgroundColor: theme.surface, color: theme.textDim }}>1a (Pts)</th>
-                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: '12px', backgroundColor: theme.surface, color: theme.textDim }}>1b (Hrs)</th>
+                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: isMobile ? '10px' : '12px', backgroundColor: theme.surface, color: theme.textDim }}>1a (Pts)</th>
+                                        <th style={{ border: `1px solid ${theme.border}`, padding: '8px', fontSize: isMobile ? '10px' : '12px', backgroundColor: theme.surface, color: theme.textDim }}>1b (Hrs)</th>
                                     </Fragment>
                                 ))}
                             </tr>
@@ -646,13 +708,13 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                         <tbody>
                             {staffNames.map(name => (
                                 <tr key={name}>
-                                    <td style={{ border: `1px solid ${theme.border}`, padding: '12px', fontWeight: 'bold', backgroundColor: theme.surfaceLight, color: theme.text, position: 'sticky', left: 0, zIndex: 1 }}>{name}</td>
+                                    <td style={{ border: `1px solid ${theme.border}`, padding: '12px', fontWeight: 'bold', backgroundColor: theme.surfaceLight, color: theme.text, position: 'sticky', left: 0, zIndex: 1, fontSize: isMobile ? '0.9em' : '1em' }}>{name}</td>
                                     {dates.map(date => {
                                         const slip = pointsSlips.find(p => p.name === name && p.date.toDateString() === date.toDateString());
                                         return (
                                             <Fragment key={date.toISOString()}>
-                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text }}>{slip ? slip.points : '-'}</td>
-                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text }}>{slip ? slip.hours : '-'}</td>
+                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text, fontSize: isMobile ? '0.9em' : '1em' }}>{slip ? slip.points : '-'}</td>
+                                                <td style={{ border: `1px solid ${theme.border}`, padding: '12px', textAlign: 'center', color: theme.text, fontSize: isMobile ? '0.9em' : '1em' }}>{slip ? slip.hours : '-'}</td>
                                             </Fragment>
                                         );
                                     })}
@@ -662,9 +724,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                     </table>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: theme.surface, padding: '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: theme.surface, padding: isMobile ? '15px' : '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <label htmlFor="staff-select" style={{ color: theme.textDim }}>Select Staff Member:</label>
+                        <label htmlFor="staff-select" style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Select Staff Member:</label>
                         <select
                             id="staff-select"
                             value={selectedStaff}
@@ -672,10 +734,11 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                             style={{ 
                                 padding: '10px', 
                                 borderRadius: '4px', 
-                                maxWidth: '300px', 
+                                maxWidth: isMobile ? '100%' : '300px', 
                                 backgroundColor: theme.surfaceLight, 
                                 color: theme.text,
-                                border: `1px solid ${theme.border}`
+                                border: `1px solid ${theme.border}`,
+                                fontSize: '16px'
                             }}
                         >
                             <option value="">--Select a name--</option>
@@ -687,12 +750,12 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
 
                     {selectedStaff && filteredSlips.length > 0 ? (
                         <div style={{ flex: 1, minWidth: '300px' }}>
-                            <h2 style={{ color: theme.primary }}>Points Graph for {selectedStaff}:</h2>
+                            <h2 style={{ color: theme.primary, fontSize: isMobile ? '1.2em' : '1.5em' }}>Points Graph for {selectedStaff}:</h2>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'flex-end',
-                                gap: '15px',
-                                height: '350px',
+                                gap: isMobile ? '10px' : '15px',
+                                height: isMobile ? '250px' : '350px',
                                 borderLeft: `2px solid ${theme.border}`,
                                 borderBottom: `2px solid ${theme.border}`,
                                 padding: '20px',
@@ -702,13 +765,13 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                                 borderRadius: '4px'
                             }}>
                                 {filteredSlips.map((point, index) => {
-                                    const height = (point.points / maxPoints) * 280; 
+                                    const height = (point.points / maxPoints) * (isMobile ? 180 : 280); 
                                     return (
                                         <div key={index} style={{
                                             display: 'flex',
                                             flexDirection: 'column',
                                             alignItems: 'center',
-                                            minWidth: '70px'
+                                            minWidth: isMobile ? '50px' : '70px'
                                         }}>
                                             <div style={{
                                                 width: '100%',
@@ -719,15 +782,15 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                                                 alignItems: 'flex-start',
                                                 color: 'white',
                                                 paddingTop: '5px',
-                                                fontSize: '12px',
+                                                fontSize: isMobile ? '10px' : '12px',
                                                 fontWeight: 'bold',
                                                 borderRadius: '4px 4px 0 0',
                                                 boxShadow: '0 -2px 4px rgba(0,0,0,0.2)'
                                             }}>
                                                 {point.points}
                                             </div>
-                                            <span style={{ fontSize: '11px', transform: 'rotate(-45deg)', marginTop: '25px', whiteSpace: 'nowrap', color: theme.textDim }}>
-                                                {point.date.toLocaleDateString()}
+                                            <span style={{ fontSize: isMobile ? '9px' : '11px', transform: 'rotate(-45deg)', marginTop: isMobile ? '20px' : '25px', whiteSpace: 'nowrap', color: theme.textDim }}>
+                                                {point.date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
                                             </span>
                                         </div>
                                     );
