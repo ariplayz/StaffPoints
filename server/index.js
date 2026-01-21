@@ -89,7 +89,7 @@ app.post('/api/slips', (req, res) => {
 });
 
 // SPA routing - redirect all other requests to index.html if it exists
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
     const indexPath = path.join(WEB_ROOT, 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
