@@ -1,12 +1,14 @@
 # 📊 Staff Points Slips
 
-A modern, lightweight web application for tracking staff performance through points and hours. Built with **React 19**, **Vite**, and **Express 5**, this tool provides real-time data entry, chronological tracking, and visual performance analytics.
+A modern, lightweight web application for tracking staff performance through points and hours. Built with **React 19**, **Vite**, and **Express 5**, this tool provides real-time data entry, chronological tracking, and visual performance analytics with a secure user system.
 
 ---
 
 ## ✨ Features
 
-- **🚀 Real-time Data Entry**: Quickly enter staff names, points, and hours worked.
+- **🔐 Secure Authentication**: Role-based access control with login protection.
+- **🛠️ Admin Dashboard**: Manage user accounts and the official staff directory.
+- **✍️ Enhanced Data Entry**: Autocomplete suggestions for staff names to ensure data consistency.
 - **📅 Comprehensive Table View**:
   - Horizontal scrolling through 30 days of records.
   - Sticky staff name columns for easy tracking.
@@ -16,7 +18,20 @@ A modern, lightweight web application for tracking staff performance through poi
   - Bar graph visualization of points over time.
 - **📊 Weekly Statistics**: Automatic calculation of total points, hours, and averages for the last 7 days.
 - **🔄 Auto-Refresh**: Background data synchronization every 20 seconds.
-- **💾 Persistent Storage**: Reliable JSON-based data storage with Docker volume persistence.
+- **💾 Persistent Storage**: Reliable JSON-based data storage with Docker volume persistence for points, users, and staff.
+
+---
+
+## 🔐 Authentication & Roles
+
+The application features two levels of access:
+
+- **👤 User**: Can enter new points slips and view performance data/graphs.
+- **🔑 Admin**: Can access the **Admin Management** page to add/delete users and manage the staff list.
+
+### Default Credentials
+- **Username**: `admin`
+- **Password**: `Password01`
 
 ---
 
@@ -24,7 +39,7 @@ A modern, lightweight web application for tracking staff performance through poi
 
 - **Frontend**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/)
 - **Backend**: [Node.js](https://nodejs.org/), [Express 5](https://expressjs.com/)
-- **Styling**: Pure CSS (Flexbox/Grid)
+- **Styling**: Pure CSS (Flexbox/Grid) with a modern dark green theme.
 - **Deployment**: [Docker](https://www.docker.com/), [Docker Compose](https://docs.docker.com/compose/)
 
 ---
@@ -45,9 +60,9 @@ The fastest way to get the production environment running:
    ```
 
 3. **Access the app**:
-   Open [http://localhost](http://localhost) in your browser.
+   Open [http://localhost](http://localhost) in your browser and log in with the default admin credentials.
 
-> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Rebuilding the container will update the app code but **will not delete your points record.**.
+> **Note**: Your data is safely stored in a Docker volume (`staffpoints_data`). Rebuilding the container with `--build` will update the app code but **will not delete your records** (points, users, or staff).
 
 ---
 
@@ -81,7 +96,10 @@ npm run server
 - `src/`: React frontend source code.
 - `server/`: Express backend (API and static file serving).
 - `dist/`: Built production files (generated after `npm run build`).
-- `data.json`: Local data storage file (fall-back if `/data/data.json` is unavailable).
+- **Data Files** (stored in the volume or project root):
+  - `data.json`: Points slips records.
+  - `users.json`: User accounts and credentials.
+  - `staff.json`: Official list of staff members.
 
 ---
 
