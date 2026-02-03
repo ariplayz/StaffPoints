@@ -16,8 +16,8 @@ A modern, mobile-optimized web application for tracking staff performance throug
   - Sticky staff name columns for easy tracking.
   - Highlighting for the current day.
 - **📈 Dynamic Performance Graphs**:
-  - Individual staff member selection.
-  - Bar graph visualization of points over time.
+  - **Global Statistics**: Real-time bar graphs for *Students at Study*, *Avg Pts/Hour*, *Total Points*, and *Total Hours* over the last 14 days.
+  - **Individual Tracking**: Select any staff member to visualize their specific points performance over time.
 - **📊 Weekly Statistics**: Real-time metrics in View Mode:
   - **Students at Study**: Count of unique staff members with slips in the last 7 days.
   - **Avg Pts/Hour**: Productivity benchmark calculated across all staff for the week.

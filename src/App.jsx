@@ -652,6 +652,63 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
     )
 }
 
+function BarGraph({ data, labelKey, valueKey, title, theme, isMobile, color }) {
+    const maxVal = Math.max(...data.map(d => d[valueKey]), 0) || 1;
+    const graphColor = color || theme.primary;
+
+    return (
+        <div style={{ flex: 1, minWidth: isMobile ? '100%' : '300px', backgroundColor: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+            <h3 style={{ color: theme.text, fontSize: isMobile ? '1em' : '1.1em', marginTop: 0, marginBottom: '15px', textAlign: 'center' }}>{title}</h3>
+            <div style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: '10px',
+                height: isMobile ? '150px' : '200px',
+                borderLeft: `1px solid ${theme.border}`,
+                borderBottom: `1px solid ${theme.border}`,
+                padding: '10px 10px 0 10px',
+                position: 'relative',
+                overflowX: 'auto',
+                backgroundColor: 'rgba(0,0,0,0.1)',
+                borderRadius: '4px'
+            }}>
+                {data.map((item, index) => {
+                    const height = (item[valueKey] / maxVal) * (isMobile ? 120 : 160);
+                    return (
+                        <div key={index} style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            minWidth: isMobile ? '40px' : '50px',
+                            flex: 1
+                        }}>
+                            <div style={{
+                                width: '100%',
+                                height: `${height}px`,
+                                backgroundColor: graphColor,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'flex-start',
+                                color: 'white',
+                                paddingTop: '2px',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                borderRadius: '2px 2px 0 0',
+                                boxShadow: '0 -1px 2px rgba(0,0,0,0.2)'
+                            }}>
+                                {item[valueKey] % 1 === 0 ? item[valueKey] : item[valueKey].toFixed(1)}
+                            </div>
+                            <span style={{ fontSize: '9px', transform: 'rotate(-45deg)', marginTop: '20px', marginBottom: '10px', whiteSpace: 'nowrap', color: theme.textDim }}>
+                                {item[labelKey]}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser, isMobile }) {
     const [selectedStaff, setSelectedStaff] = useState(() => localStorage.getItem('selectedStaff') || '');
     const [activeTab, setActiveTab] = useState('table');
@@ -698,6 +755,30 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
         .sort((a, b) => a.date - b.date);
 
     const maxPoints = Math.max(...filteredSlips.map(p => p.points), 0);
+
+    // Calculate historical stats for graphs
+    const last14Days = [];
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date(todayLocal);
+        d.setDate(d.getDate() - i);
+        last14Days.push(d);
+    }
+
+    const dailyStats = last14Days.map(date => {
+        const daySlips = pointsSlips.filter(p => p.date.toDateString() === date.toDateString());
+        const totalPoints = daySlips.reduce((sum, p) => sum + p.points, 0);
+        const totalHours = daySlips.reduce((sum, p) => sum + p.hours, 0);
+        const numStudents = new Set(daySlips.map(p => p.name)).size;
+        const avgPtsPerHr = totalHours > 0 ? Number((totalPoints / totalHours).toFixed(2)) : 0;
+        
+        return {
+            dateStr: date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
+            totalPoints,
+            totalHours,
+            numStudents,
+            avgPtsPerHr
+        };
+    });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'stretch', width: '100%', padding: isMobile ? '10px' : '20px', boxSizing: 'border-box', minHeight: '100vh', backgroundColor: theme.background, color: theme.text }}>
@@ -807,84 +888,89 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                     </table>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: theme.surface, padding: isMobile ? '15px' : '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <label htmlFor="staff-select" style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Select Staff Member:</label>
-                        <select
-                            id="staff-select"
-                            value={selectedStaff}
-                            onChange={(e) => setSelectedStaff(e.target.value)}
-                            style={{ 
-                                padding: '10px', 
-                                borderRadius: '4px', 
-                                maxWidth: isMobile ? '100%' : '300px', 
-                                backgroundColor: theme.surfaceLight, 
-                                color: theme.text,
-                                border: `1px solid ${theme.border}`,
-                                fontSize: '16px'
-                            }}
-                        >
-                            <option value="">--Select a name--</option>
-                            {staffNames.map(name => (
-                                <option key={name} value={name}>{name}</option>
-                            ))}
-                        </select>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', backgroundColor: theme.surface, padding: isMobile ? '15px' : '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <h2 style={{ color: theme.primary, margin: '0 0 10px 0', borderBottom: `1px solid ${theme.border}`, paddingBottom: '10px' }}>Global Performance (Last 14 Days)</h2>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
+                            <BarGraph 
+                                title="Students at Study" 
+                                data={dailyStats} 
+                                labelKey="dateStr" 
+                                valueKey="numStudents" 
+                                theme={theme} 
+                                isMobile={isMobile}
+                            />
+                            <BarGraph 
+                                title="Average Points / Hour" 
+                                data={dailyStats} 
+                                labelKey="dateStr" 
+                                valueKey="avgPtsPerHr" 
+                                theme={theme} 
+                                isMobile={isMobile}
+                                color="#028a5e"
+                            />
+                            <BarGraph 
+                                title="Total Points" 
+                                data={dailyStats} 
+                                labelKey="dateStr" 
+                                valueKey="totalPoints" 
+                                theme={theme} 
+                                isMobile={isMobile}
+                            />
+                            <BarGraph 
+                                title="Total Hours" 
+                                data={dailyStats} 
+                                labelKey="dateStr" 
+                                valueKey="totalHours" 
+                                theme={theme} 
+                                isMobile={isMobile}
+                                color="#028a5e"
+                            />
+                        </div>
                     </div>
 
-                    {selectedStaff && filteredSlips.length > 0 ? (
-                        <div style={{ flex: 1, minWidth: '300px' }}>
-                            <h2 style={{ color: theme.primary, fontSize: isMobile ? '1.2em' : '1.5em' }}>Points Graph for {selectedStaff}:</h2>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                gap: isMobile ? '10px' : '15px',
-                                height: isMobile ? '250px' : '350px',
-                                borderLeft: `2px solid ${theme.border}`,
-                                borderBottom: `2px solid ${theme.border}`,
-                                padding: '20px',
-                                position: 'relative',
-                                overflowX: 'auto',
-                                backgroundColor: 'rgba(0,0,0,0.1)',
-                                borderRadius: '4px'
-                            }}>
-                                {filteredSlips.map((point, index) => {
-                                    const height = (point.points / maxPoints) * (isMobile ? 180 : 280); 
-                                    return (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            minWidth: isMobile ? '50px' : '70px'
-                                        }}>
-                                            <div style={{
-                                                width: '100%',
-                                                height: `${height}px`,
-                                                backgroundColor: theme.primary,
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'flex-start',
-                                                color: 'white',
-                                                paddingTop: '5px',
-                                                fontSize: isMobile ? '10px' : '12px',
-                                                fontWeight: 'bold',
-                                                borderRadius: '4px 4px 0 0',
-                                                boxShadow: '0 -2px 4px rgba(0,0,0,0.2)'
-                                            }}>
-                                                {point.points}
-                                            </div>
-                                            <span style={{ fontSize: isMobile ? '9px' : '11px', transform: 'rotate(-45deg)', marginTop: isMobile ? '20px' : '25px', whiteSpace: 'nowrap', color: theme.textDim }}>
-                                                {point.date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px', borderTop: `2px solid ${theme.border}`, paddingTop: '30px' }}>
+                        <h2 style={{ color: theme.primary, margin: 0 }}>Individual Staff Performance</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <label htmlFor="staff-select" style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Select Staff Member:</label>
+                            <select
+                                id="staff-select"
+                                value={selectedStaff}
+                                onChange={(e) => setSelectedStaff(e.target.value)}
+                                style={{ 
+                                    padding: '10px', 
+                                    borderRadius: '4px', 
+                                    maxWidth: isMobile ? '100%' : '300px', 
+                                    backgroundColor: theme.surfaceLight, 
+                                    color: theme.text,
+                                    border: `1px solid ${theme.border}`,
+                                    fontSize: '16px'
+                                }}
+                            >
+                                <option value="">--Select a name--</option>
+                                {staffNames.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
                         </div>
-                    ) : (
-                        <p style={{ color: theme.textDim, textAlign: 'center', padding: '40px' }}>
-                            {selectedStaff ? 'No data available for this staff member.' : 'Please select a staff member to see their performance graph.'}
-                        </p>
-                    )}
+
+                        {selectedStaff && filteredSlips.length > 0 ? (
+                            <BarGraph 
+                                title={`Points Graph for ${selectedStaff}`}
+                                data={filteredSlips.map(s => ({ ...s, dateStr: s.date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }) }))}
+                                labelKey="dateStr"
+                                valueKey="points"
+                                theme={theme}
+                                isMobile={isMobile}
+                            />
+                        ) : (
+                            <p style={{ color: theme.textDim, textAlign: 'center', padding: '40px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+                                {selectedStaff ? 'No data available for this staff member.' : 'Please select a staff member to see their performance graph.'}
+                            </p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
