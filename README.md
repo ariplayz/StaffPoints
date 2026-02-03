@@ -6,7 +6,7 @@ A modern, mobile-optimized web application for tracking staff performance throug
 
 ## ✨ Features
 
-- **🔐 Secure Authentication**: Role-based access control (Admin/User) with persistent sessions.
+- **🔐 Secure Authentication**: Role-based access control (Admin/User) using **JSON Web Tokens (JWT)** and **bcrypt.js** password hashing. Legacy plain-text passwords are automatically migrated on first run.
 - **📱 Mobile Optimized**: Fully responsive design with a dedicated mobile interface and hamburger menu.
 - **🎨 Modern Dark Theme**: Professional dark green aesthetic (`#016c4a`) optimized for low-light environments.
 - **🛠️ Admin Dashboard**: Manage user accounts and the official staff directory.
@@ -18,9 +18,30 @@ A modern, mobile-optimized web application for tracking staff performance throug
 - **📈 Dynamic Performance Graphs**:
   - Individual staff member selection.
   - Bar graph visualization of points over time.
-- **📊 Weekly Statistics**: Automatic calculation of total points, hours, and averages for the last 7 days.
-- **🔄 Auto-Refresh**: Background data synchronization every 20 seconds.
+- **📊 Weekly Statistics**: Real-time metrics in View Mode:
+  - **Students at Study**: Count of unique staff members with slips in the last 7 days.
+  - **Avg Pts/Hour**: Productivity benchmark calculated across all staff for the week.
+  - **Total Points & Hours**: Sum of all recorded effort for the last 7 days.
+- **🔄 Auto-Refresh & Persistence**: 
+  - Background data synchronization every 20 seconds.
+  - Remembers your current page and selected staff member on refresh.
 - **💾 Persistent Storage**: Reliable JSON-based data storage with Docker volume persistence for points, users, and staff.
+
+---
+
+## 🔐 Security & Data Persistence
+
+### Authentication
+The system uses a modern security stack:
+- **JWT (JSON Web Tokens)**: All API requests are authenticated via Bearer tokens. Roles are signed on the server and verified for every protected endpoint.
+- **Password Hashing**: Passwords are never stored in plain text. They are hashed using **bcrypt.js** with a salt factor of 10.
+- **Auto-Migration**: If you are upgrading from an older version, the server will automatically detect and hash existing plain-text passwords on the first start, ensuring zero data loss and immediate security upgrades.
+
+### Data Persistence
+Data is preserved even when the container is stopped or removed:
+- **Docker Volumes**: A named volume `staffpoints_data` maps to `/data` in the container.
+- **File-based DB**: Uses `data.json`, `users.json`, and `staff.json` for lightweight, human-readable storage that doesn't require a heavy database engine.
+- **State Persistence**: User preferences (active page, selected staff in graphs) are stored in the browser's `localStorage` and synchronized with the backend session.
 
 ---
 
@@ -40,7 +61,7 @@ The application features two levels of access:
 ## 🛠️ Tech Stack
 
 - **Frontend**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/)
-- **Backend**: [Node.js](https://nodejs.org/), [Express 5](https://expressjs.com/)
+- **Backend**: [Node.js](https://nodejs.org/), [Express 5](https://expressjs.com/), [jsonwebtoken](https://www.npmjs.com/package/jsonwebtoken), [bcryptjs](https://www.npmjs.com/package/bcryptjs)
 - **Styling**: Modern Dark Green Theme using Pure CSS.
 - **Deployment**: [Docker](https://www.docker.com/), [Docker Compose](https://docs.docker.com/compose/)
 

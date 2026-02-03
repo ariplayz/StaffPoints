@@ -3,6 +3,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +47,8 @@ const activeDataFile = path.join(activeDataDir, 'data.json');
 const activeUsersFile = path.join(activeDataDir, 'users.json');
 const activeStaffFile = path.join(activeDataDir, 'staff.json');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'staff-points-secret-2026';
+
 // Initialize files if they don't exist
 if (!fs.existsSync(activeDataFile)) {
     fs.writeFileSync(activeDataFile, JSON.stringify([], null, 2));
@@ -52,8 +56,27 @@ if (!fs.existsSync(activeDataFile)) {
 
 if (!fs.existsSync(activeUsersFile)) {
     // Initial admin user: admin/Password01
-    const initialUsers = [{ username: 'admin', password: 'Password01', role: 'admin' }];
+    const hashedPassword = bcrypt.hashSync('Password01', 10);
+    const initialUsers = [{ username: 'admin', password: hashedPassword, role: 'admin' }];
     fs.writeFileSync(activeUsersFile, JSON.stringify(initialUsers, null, 2));
+} else {
+    // Migration: ensure all passwords are hashed
+    try {
+        const users = JSON.parse(fs.readFileSync(activeUsersFile, 'utf8'));
+        let changed = false;
+        const migratedUsers = users.map(u => {
+            if (u.password && !u.password.startsWith('$2a$') && !u.password.startsWith('$2b$')) {
+                u.password = bcrypt.hashSync(u.password, 10);
+                changed = true;
+            }
+            return u;
+        });
+        if (changed) {
+            fs.writeFileSync(activeUsersFile, JSON.stringify(migratedUsers, null, 2));
+        }
+    } catch (e) {
+        console.error('Migration error:', e);
+    }
 }
 
 if (!fs.existsSync(activeStaffFile)) {
@@ -73,40 +96,76 @@ const writeJSON = (file, data) => {
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
 };
 
-// Authentication endpoint
+/**
+ * Authentication endpoint
+ * Generates a JWT token valid for 30 days on successful login
+ */
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     
-    // Hardcoded default admin that is always accepted
-    if (username === 'admin' && password === 'Password01') {
-        return res.json({ username: 'admin', role: 'admin' });
-    }
-
     const users = readJSON(activeUsersFile);
-    const user = users.find(u => u.username === username && u.password === password);
+    const user = users.find(u => u.username === username);
     
-    if (user) {
-        res.json({ username: user.username, role: user.role });
+    if (user && bcrypt.compareSync(password, user.password)) {
+        const token = jwt.sign(
+            { username: user.username, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
+        res.json({ username: user.username, role: user.role, token });
     } else {
         res.status(401).json({ error: 'Invalid credentials' });
     }
 });
 
-// Admin check middleware (optional for this simple tool, but good practice)
-const isAdmin = (req) => {
-    // In this simplified version, we'll let the frontend handle most UI logic,
-    // but the backend should ideally verify some header/token.
-    // For now, we trust the client as requested for an "unimportant tool".
-    return true; 
+/**
+ * Auth middleware
+ * Verifies the JWT token from the Authorization header
+ */
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
 };
 
-// User management (Admin only)
-app.get('/api/users', (req, res) => {
+/**
+ * Admin check middleware
+ * Ensures the authenticated user has the 'admin' role
+ */
+const isAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Admin access required' });
+    }
+};
+
+/**
+ * Get current user info from token
+ */
+app.get('/api/me', authenticateToken, (req, res) => {
+    res.json(req.user);
+});
+
+/**
+ * User management endpoints (Admin only)
+ */
+app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
     res.json(readJSON(activeUsersFile).map(u => ({ username: u.username, role: u.role })));
 });
 
-app.post('/api/users', (req, res) => {
+app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
     const newUser = req.body;
+    if (newUser.password) {
+        newUser.password = bcrypt.hashSync(newUser.password, 10);
+    }
     const users = readJSON(activeUsersFile);
     if (users.find(u => u.username === newUser.username)) {
         return res.status(400).json({ error: 'User already exists' });
@@ -116,7 +175,7 @@ app.post('/api/users', (req, res) => {
     res.status(201).json({ username: newUser.username, role: newUser.role });
 });
 
-app.delete('/api/users/:username', (req, res) => {
+app.delete('/api/users/:username', authenticateToken, isAdmin, (req, res) => {
     const { username } = req.params;
     if (username === 'admin') return res.status(400).json({ error: 'Cannot delete default admin' });
     let users = readJSON(activeUsersFile);
@@ -125,12 +184,14 @@ app.delete('/api/users/:username', (req, res) => {
     res.status(204).send();
 });
 
-// Staff management
-app.get('/api/staff', (req, res) => {
+/**
+ * Staff management endpoints
+ */
+app.get('/api/staff', authenticateToken, (req, res) => {
     res.json(readJSON(activeStaffFile));
 });
 
-app.post('/api/staff', (req, res) => {
+app.post('/api/staff', authenticateToken, isAdmin, (req, res) => {
     const newStaff = req.body;
     const staff = readJSON(activeStaffFile);
     if (staff.find(s => s.name === newStaff.name)) {
@@ -141,7 +202,7 @@ app.post('/api/staff', (req, res) => {
     res.status(201).json(newStaff);
 });
 
-app.delete('/api/staff/:name', (req, res) => {
+app.delete('/api/staff/:name', authenticateToken, isAdmin, (req, res) => {
     const { name } = req.params;
     let staff = readJSON(activeStaffFile);
     staff = staff.filter(s => s.name !== name);
@@ -149,11 +210,14 @@ app.delete('/api/staff/:name', (req, res) => {
     res.status(204).send();
 });
 
-app.get('/api/slips', (req, res) => {
+/**
+ * Points slips endpoints
+ */
+app.get('/api/slips', authenticateToken, (req, res) => {
     res.json(readJSON(activeDataFile));
 });
 
-app.post('/api/slips', (req, res) => {
+app.post('/api/slips', authenticateToken, (req, res) => {
     const newSlip = req.body;
     const slips = readJSON(activeDataFile);
     slips.push(newSlip);

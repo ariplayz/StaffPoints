@@ -29,11 +29,28 @@ function App() {
         accent: '#028a5e'
     };
 
+    const fetchWithAuth = async (url, options = {}) => {
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+            'Authorization': token ? `Bearer ${token}` : '',
+        };
+        return fetch(url, { ...options, headers });
+    };
+
     const fetchSlips = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/slips`);
-            if (!response.ok) throw new Error('Failed to fetch data');
+            const response = await fetchWithAuth(`${API_URL}/slips`);
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    handleLogout();
+                    return;
+                }
+                throw new Error('Failed to fetch data');
+            }
             const data = await response.json();
             const formattedData = data.map(slip => {
                 const [year, month, day] = slip.date.split('-').map(Number);
@@ -54,7 +71,7 @@ function App() {
 
     const fetchStaff = async () => {
         try {
-            const response = await fetch(`${API_URL}/staff`);
+            const response = await fetchWithAuth(`${API_URL}/staff`);
             if (response.ok) {
                 const data = await response.json();
                 setStaffList(data);
@@ -67,30 +84,61 @@ function App() {
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
-            setCurrentUser(JSON.parse(savedUser));
+            const user = JSON.parse(savedUser);
+            setCurrentUser(user);
+            
+            // Validate token and potentially refresh role/info
+            fetch(`${API_URL}/me`, {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            }).then(res => {
+                if (res.ok) {
+                    return res.json();
+                } else {
+                    handleLogout();
+                    throw new Error('Invalid session');
+                }
+            }).then(userData => {
+                const updatedUser = { ...user, ...userData };
+                setCurrentUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                
+                const savedScreen = localStorage.getItem('screen');
+                if (savedScreen) setScreen(savedScreen);
+            }).catch(err => {
+                console.error('Session validation error:', err);
+            });
         }
 
         document.body.style.backgroundColor = theme.background;
         document.body.style.color = theme.text;
         document.body.style.margin = '0';
         document.body.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-
-        fetchSlips();
-        fetchStaff();
-
-        const interval = setInterval(() => {
-            fetchSlips(true);
-            fetchStaff();
-        }, 20000);
-
-        return () => clearInterval(interval);
     }, [theme.background, theme.text]);
+
+    useEffect(() => {
+        if (currentUser) {
+            fetchSlips();
+            fetchStaff();
+
+            const interval = setInterval(() => {
+                fetchSlips(true);
+                fetchStaff();
+            }, 20000);
+
+            return () => clearInterval(interval);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        if (currentUser) {
+            localStorage.setItem('screen', screen);
+        }
+    }, [screen, currentUser]);
 
     const addSlip = async (newSlip) => {
         try {
-            const response = await fetch(`${API_URL}/slips`, {
+            const response = await fetchWithAuth(`${API_URL}/slips`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newSlip),
             });
             if (!response.ok) throw new Error('Failed to save data');
@@ -124,6 +172,8 @@ function App() {
     const handleLogout = () => {
         setCurrentUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('screen');
+        localStorage.removeItem('selectedStaff');
         setScreen('home');
     };
 
@@ -323,9 +373,13 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser, isMobil
     const [newStaffName, setNewStaffName] = useState('');
 
     const fetchData = React.useCallback(async () => {
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+        const headers = { 'Authorization': token ? `Bearer ${token}` : '' };
+        
         try {
-            const uRes = await fetch(`${API_URL}/users`);
-            const sRes = await fetch(`${API_URL}/staff`);
+            const uRes = await fetch(`${API_URL}/users`, { headers });
+            const sRes = await fetch(`${API_URL}/staff`, { headers });
             if (uRes.ok) setUsers(await uRes.json());
             if (sRes.ok) setStaff(await sRes.json());
         } catch (e) { console.error(e); }
@@ -343,9 +397,15 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser, isMobil
     const addUser = async (e) => {
         e.preventDefault();
         if (!newUsername || !newPassword) return;
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+
         const res = await fetch(`${API_URL}/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
             body: JSON.stringify({ username: newUsername, password: newPassword, role: newRole })
         });
         if (res.ok) {
@@ -357,16 +417,28 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser, isMobil
 
     const deleteUser = async (uname) => {
         if (uname === 'admin') return;
-        const res = await fetch(`${API_URL}/users/${uname}`, { method: 'DELETE' });
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+
+        const res = await fetch(`${API_URL}/users/${uname}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
         if (res.ok) fetchData();
     };
 
     const addStaff = async (e) => {
         e.preventDefault();
         if (!newStaffName) return;
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+
         const res = await fetch(`${API_URL}/staff`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
             body: JSON.stringify({ name: newStaffName })
         });
         if (res.ok) {
@@ -377,7 +449,13 @@ function AdminScreen({ setScreen, theme, API_URL, onLogout, currentUser, isMobil
     };
 
     const deleteStaff = async (name) => {
-        const res = await fetch(`${API_URL}/staff/${name}`, { method: 'DELETE' });
+        const savedUser = localStorage.getItem('user');
+        const token = savedUser ? JSON.parse(savedUser).token : null;
+
+        const res = await fetch(`${API_URL}/staff/${name}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
         if (res.ok) fetchData();
     };
 
@@ -575,9 +653,13 @@ function EnterPointsScreen({ setScreen, addSlip, theme, staffList, onLogout, cur
 }
 
 function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser, isMobile }) {
-    const [selectedStaff, setSelectedStaff] = useState('');
+    const [selectedStaff, setSelectedStaff] = useState(() => localStorage.getItem('selectedStaff') || '');
     const [activeTab, setActiveTab] = useState('table');
     const tableContainerRef = React.useRef(null);
+
+    useEffect(() => {
+        localStorage.setItem('selectedStaff', selectedStaff);
+    }, [selectedStaff]);
 
     const todayLocal = new Date();
     todayLocal.setHours(0, 0, 0, 0);
@@ -586,6 +668,9 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
     
     const totalPointsWeek = weeklySlips.reduce((sum, p) => sum + p.points, 0);
     const totalHoursWeek = weeklySlips.reduce((sum, p) => sum + p.hours, 0);
+    const numStudentsWeek = new Set(weeklySlips.map(p => p.name)).size;
+    const avgPointsPerHourWeek = totalHoursWeek > 0 ? (totalPointsWeek / totalHoursWeek).toFixed(2) : 0;
+    
     const avgPointsWeek = weeklySlips.length > 0 ? Number((totalPointsWeek / weeklySlips.length).toFixed(2)) : 0;
     const avgHoursWeek = weeklySlips.length > 0 ? Number((totalHoursWeek / weeklySlips.length).toFixed(2)) : 0;
 
@@ -620,17 +705,17 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
 
             <hr style={{ border: `1px solid ${theme.border}`, width: '100%', margin: '0' }} />
 
-            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: theme.surface, padding: isMobile ? '15px' : '20px', borderRadius: '8px', border: `1px solid ${theme.primary}`, width: '100%', maxWidth: '600px', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
+            <div style={{ alignSelf: 'center', textAlign: 'center', backgroundColor: theme.surface, padding: isMobile ? '15px' : '20px', borderRadius: '8px', border: `1px solid ${theme.primary}`, width: '100%', maxWidth: '700px', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }}>
                 <h3 style={{ margin: '0 0 15px 0', color: theme.primary, fontSize: isMobile ? '1.1em' : '1.3em' }}>Weekly Stats (Last 7 Days)</h3>
                 <div style={{ display: 'flex', justifyContent: 'space-around', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '10px' : '0' }}>
                     <div>
-                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Points:</span> <strong style={{ color: theme.text }}>{totalPointsWeek.toFixed(1)}</strong><br/>
-                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Hours:</span> <strong style={{ color: theme.text }}>{totalHoursWeek.toFixed(1)}</strong>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Students at Study:</span> <strong style={{ color: theme.text }}>{numStudentsWeek}</strong><br/>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Avg Pts/Hour:</span> <strong style={{ color: theme.text }}>{avgPointsPerHourWeek}</strong>
                     </div>
                     {isMobile && <hr style={{ border: `0.5px solid ${theme.border}`, width: '80%' }} />}
                     <div>
-                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Avg Pts/Slip:</span> <strong style={{ color: theme.text }}>{avgPointsWeek}</strong><br/>
-                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Avg Hrs/Slip:</span> <strong style={{ color: theme.text }}>{avgHoursWeek}</strong>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Points:</span> <strong style={{ color: theme.text }}>{totalPointsWeek.toFixed(1)}</strong><br/>
+                        <span style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Total Hours:</span> <strong style={{ color: theme.text }}>{totalHoursWeek.toFixed(1)}</strong>
                     </div>
                 </div>
             </div>
