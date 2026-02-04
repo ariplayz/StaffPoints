@@ -4,7 +4,7 @@ const API_URL = '/api';
 
 function App() {
     const [pointsSlips, setPointsSlips] = useState([]);
-    const [screen, setScreen] = useState('home');
+    const [screen, setScreen] = useState(() => localStorage.getItem('screen') || 'home');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
@@ -101,9 +101,6 @@ function App() {
                 const updatedUser = { ...user, ...userData };
                 setCurrentUser(updatedUser);
                 localStorage.setItem('user', JSON.stringify(updatedUser));
-                
-                const savedScreen = localStorage.getItem('screen');
-                if (savedScreen) setScreen(savedScreen);
             }).catch(err => {
                 console.error('Session validation error:', err);
             });
@@ -719,6 +716,7 @@ function BarGraph({ data, labelKey, valueKey, title, theme, isMobile, color }) {
 function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser, isMobile }) {
     const [selectedStaff, setSelectedStaff] = useState(() => localStorage.getItem('selectedStaff') || '');
     const [activeTab, setActiveTab] = useState('table');
+    const [graphPeriod, setGraphPeriod] = useState('weekly');
     const tableContainerRef = React.useRef(null);
 
     useEffect(() => {
@@ -776,6 +774,13 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
 
     const maxPoints = Math.max(...filteredSlips.map(p => p.points), 0);
 
+    const getMonday = (d) => {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(date.setDate(diff));
+    };
+
     // Calculate historical stats for graphs - last 14 weekdays
     const last14Days = [];
     let dOffset = 0;
@@ -804,6 +809,71 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
             numStudents,
             avgPtsPerHr
         };
+    });
+
+    // Calculate weekly stats for Global - last 12 weeks
+    const last12Weeks = [];
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(todayLocal);
+        d.setDate(d.getDate() - (i * 7));
+        const mon = getMonday(d);
+        mon.setHours(0, 0, 0, 0);
+        last12Weeks.push(mon);
+    }
+    last12Weeks.reverse();
+
+    const weeklyStats = last12Weeks.map(monday => {
+        const nextMonday = new Date(monday);
+        nextMonday.setDate(monday.getDate() + 7);
+        const weekSlips = pointsSlips.filter(p => p.date >= monday && p.date < nextMonday);
+        const totalPoints = weekSlips.reduce((sum, p) => sum + p.points, 0);
+        const totalHours = weekSlips.reduce((sum, p) => sum + p.hours, 0);
+        const numStudents = new Set(weekSlips.map(p => p.name)).size;
+        const avgPtsPerHr = totalHours > 0 ? Number((totalPoints / totalHours).toFixed(2)) : 0;
+
+        return {
+            dateStr: (monday.getMonth() + 1) + '/' + monday.getDate(),
+            totalPoints,
+            totalHours,
+            numStudents,
+            avgPtsPerHr
+        };
+    });
+
+    const globalGraphData = graphPeriod === 'daily' ? dailyStats : weeklyStats;
+
+    let individualGraphData = [];
+    if (selectedStaff) {
+        if (graphPeriod === 'daily') {
+            individualGraphData = pointsSlips
+                .filter(p => p.name === selectedStaff && !isWeekend(p.date))
+                .sort((a, b) => a.date - b.date)
+                .map(s => ({ ...s, dateStr: s.date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }) }));
+        } else {
+            individualGraphData = last12Weeks.map(monday => {
+                const nextMonday = new Date(monday);
+                nextMonday.setDate(monday.getDate() + 7);
+                const weekSlips = pointsSlips.filter(p => p.name === selectedStaff && p.date >= monday && p.date < nextMonday);
+                const totalPoints = weekSlips.reduce((sum, p) => sum + p.points, 0);
+                return {
+                    dateStr: (monday.getMonth() + 1) + '/' + monday.getDate(),
+                    points: totalPoints
+                };
+            });
+        }
+    }
+
+    const subTabStyle = (isActive) => ({
+        padding: '8px 20px',
+        cursor: 'pointer',
+        borderRadius: '20px',
+        border: `1px solid ${theme.primary}`,
+        backgroundColor: isActive ? theme.primary : 'transparent',
+        color: isActive ? 'white' : theme.text,
+        fontWeight: 'bold',
+        fontSize: '0.85em',
+        transition: 'all 0.2s',
+        flex: isMobile ? 1 : 'none'
     });
 
     return (
@@ -916,13 +986,28 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', backgroundColor: theme.surface, padding: isMobile ? '15px' : '30px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
                     
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', justifyContent: 'center' }}>
+                        <button 
+                            onClick={() => setGraphPeriod('weekly')}
+                            style={subTabStyle(graphPeriod === 'weekly')}
+                        >
+                            Weekly
+                        </button>
+                        <button 
+                            onClick={() => setGraphPeriod('daily')}
+                            style={subTabStyle(graphPeriod === 'daily')}
+                        >
+                            Daily
+                        </button>
+                    </div>
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <h2 style={{ color: theme.primary, margin: '0 0 10px 0', borderBottom: `1px solid ${theme.border}`, paddingBottom: '10px' }}>Global Performance (Last 14 Days)</h2>
+                        <h2 style={{ color: theme.primary, margin: '0 0 10px 0', borderBottom: `1px solid ${theme.border}`, paddingBottom: '10px' }}>Global Performance ({graphPeriod === 'daily' ? 'Last 14 Days' : 'Last 12 Weeks'})</h2>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
                             <BarGraph 
                                 title="Students at Study" 
-                                data={dailyStats} 
+                                data={globalGraphData} 
                                 labelKey="dateStr" 
                                 valueKey="numStudents" 
                                 theme={theme} 
@@ -930,7 +1015,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                             />
                             <BarGraph 
                                 title="Average Points / Hour" 
-                                data={dailyStats} 
+                                data={globalGraphData} 
                                 labelKey="dateStr" 
                                 valueKey="avgPtsPerHr" 
                                 theme={theme} 
@@ -939,7 +1024,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                             />
                             <BarGraph 
                                 title="Total Points" 
-                                data={dailyStats} 
+                                data={globalGraphData} 
                                 labelKey="dateStr" 
                                 valueKey="totalPoints" 
                                 theme={theme} 
@@ -947,7 +1032,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                             />
                             <BarGraph 
                                 title="Total Hours" 
-                                data={dailyStats} 
+                                data={globalGraphData} 
                                 labelKey="dateStr" 
                                 valueKey="totalHours" 
                                 theme={theme} 
@@ -958,7 +1043,7 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px', borderTop: `2px solid ${theme.border}`, paddingTop: '30px' }}>
-                        <h2 style={{ color: theme.primary, margin: 0 }}>Individual Staff Performance</h2>
+                        <h2 style={{ color: theme.primary, margin: 0 }}>Individual Staff Performance ({graphPeriod === 'daily' ? 'Daily' : 'Weekly'})</h2>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <label htmlFor="staff-select" style={{ color: theme.textDim, fontSize: isMobile ? '0.9em' : '1em' }}>Select Staff Member:</label>
                             <select
@@ -982,12 +1067,10 @@ function ViewPointsScreen({ setScreen, pointsSlips, theme, onLogout, currentUser
                             </select>
                         </div>
 
-                        {selectedStaff && filteredSlips.length > 0 ? (
+                        {selectedStaff && individualGraphData.length > 0 ? (
                             <BarGraph 
-                                title={`Points Graph for ${selectedStaff}`}
-                                data={filteredSlips
-                                    .filter(s => !isWeekend(s.date))
-                                    .map(s => ({ ...s, dateStr: s.date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }) }))}
+                                title={`${graphPeriod === 'daily' ? 'Daily' : 'Weekly'} Points for ${selectedStaff}`}
+                                data={individualGraphData}
                                 labelKey="dateStr"
                                 valueKey="points"
                                 theme={theme}
